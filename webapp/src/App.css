@@ -1,0 +1,71 @@
+body {
+  margin: 0;
+  font-family: 'Source Sans 3', sans-serif;
+  background: #f9f9ff;
+}
+
+.page-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+  text-align: center;
+}
+
+
+.loading-container {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-bar {
+  height: 8px;
+  background: #4f46e5;
+  border-radius: 4px;
+  flex: 1;
+}
+
+.report-json {
+  text-align: left;
+  background: #fff;
+  padding: 16px;
+  border-radius: 4px;
+  overflow: auto;
+}
+
+.upload-button {
+  background: #f9f9ff;
+}
+
+.upload-button:hover {
+  background: #e9e6e6;
+}
+
+/* Toast animation */
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes fadeSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+}
+
+@keyframes candy {
+  from { background-position: 0 0; }
+  to   { background-position: 40px 0; }
+}

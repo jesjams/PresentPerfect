@@ -1,0 +1,13 @@
+eventlet==0.40.0
+Flask==3.1.1
+flask_cors==5.0.1
+Flask_SocketIO==5.5.1
+mediapipe==0.10.21
+numpy==1.26.4
+openai==1.79.0
+openai_whisper==20240930
+opencv_contrib_python==4.11.0.86
+opencv_python==4.11.0.86
+pydantic==2.11.4
+python-dotenv==1.1.0
+ultralytics==8.3.111
