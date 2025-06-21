@@ -55,8 +55,11 @@ except Exception as e:
     print(f"[ERROR] Failed to initialize enhanced audio processor: {e}")
     enhanced_audio_processor = None
 
-#Models & Consts  
-MODEL_PATH   = os.getenv("MODEL_PATH") or "yolov8n.pt"
+# Models & Consts
+MODEL_PATH = os.getenv("MODEL_PATH")
+if not MODEL_PATH:
+    # Default to the bundled model relative to this file
+    MODEL_PATH = os.path.join(Path(__file__).resolve().parent, "best.pt")
 emotion_model = YOLO(MODEL_PATH)
 
 whisper_model = whisper.load_model("turbo", device=DEVICE) 
