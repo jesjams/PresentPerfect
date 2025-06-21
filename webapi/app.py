@@ -670,7 +670,7 @@ def process_video(temp_path):
                   {'message': 'Processing done!', 'progress': '100','data': payload})
 
 
-@app.route('/api/analyze-audio', methods=['POST'])
+# @app.route('/api/analyze-audio', methods=['POST'])
 def analyze_audio():
     try:
         reset_state()
@@ -847,12 +847,13 @@ def convert_numpy_types(obj):
         return float(obj)
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
-    elif hasattr(obj, 'item'):  # numpy scalar
+    elif hasattr(obj, 'item'):
         return obj.item()
     else:
         return obj
 
-@app.route('/api/new_audio_analysis', methods=['POST'])
+# @app.route('/api/new_audio_analysis', methods=['POST'])
+@app.route('/api/analyze-audio', methods=['POST'])
 def new_audio_analysis():
     try:
         reset_state()
@@ -897,7 +898,6 @@ def new_audio_analysis():
         import traceback
         traceback.print_exc()
         return {'error': str(e)}, 500
-
 
 def process_comprehensive_audio(temp_path):
     """Process audio with metrics, transcription, enhancement, and TTS generation"""
@@ -1139,92 +1139,122 @@ def process_comprehensive_audio(temp_path):
             'stage': 'compilation'
         })
         
-        # Calculate additional metadata
+        # Calculate scores for presentation metrics
         original_word_count = len(transcription_data['full_text'].split()) if transcription_data['full_text'] else 0
         enhanced_word_count = len(enhanced_data['enhanced_text'].split()) if enhanced_data['enhanced_text'] else 0
-        
+
         # Count filler words in original (rough estimate)
         filler_words = ['um', 'uh', 'like', 'you know', 'basically', 'actually', 'so', 'well']
         original_lower = transcription_data['full_text'].lower() if transcription_data['full_text'] else ""
         filler_count = sum(original_lower.count(filler) for filler in filler_words)
+
+        # Calculate scores for presentation metrics (now that filler_count is available)
+        clarity_score = metrics_data.get('accuracy', 75) if metrics_data else 75
+        pace_score = metrics_data.get('fluency', 70) if metrics_data else 70
+        confidence_score = max(0, 100 - (filler_count * 5))  # Reduce score based on filler words
+        engagement_score = metrics_data.get('prosody', 80) if metrics_data else 80
+
+        # Calculate overall score as average
+        overall_score = int((clarity_score + pace_score + confidence_score + engagement_score) / 4)
         
-        # Build comprehensive payload
+        # Build comprehensive payload to match frontend expectations
         comprehensive_payload = {
-            # Original transcription data
-            'original_transcript': transcription_data['full_text'],
-            'transcription_metadata': {
-                'language': transcription_data.get('language', 'unknown'),
-                'duration': float(transcription_data.get('duration', 0)),  # Ensure it's a Python float
-                'speaker_gender': transcription_data.get('speaker_gender', 'unknown'),
-                'pitch_hz': float(transcription_data.get('pitch_hz', 0)),  # Convert numpy float32 to Python float
-                'segments': transcription_data.get('segments', [])
+            # Basic transcript data (matches frontend expectations)
+            'transcriptSegments': transcription_data['full_text'],  # Frontend expects this key
+            'enhancedTranscript': enhanced_data['enhanced_text'],
+            'enhancedAudioUrl': f'/static/generated_audio/{audio_file_path}' if audio_file_path else None,
+            'duration': float(transcription_data.get('duration', 0)),
+            'language': transcription_data.get('language', 'en'),
+            'overallScore': overall_score,  # Use calculated overall score
+            
+            # Presentation metrics (matches frontend structure)
+            'presentationMetrics': {
+                'clarity_score': clarity_score,
+                'pace_score': pace_score,
+                'confidence_score': confidence_score,
+                'engagement_score': engagement_score,
+                'clarity_feedback': f"Your pronunciation accuracy is {clarity_score}%. Focus on clear articulation of words." if metrics_data else "Work on speaking clearly and articulating each word properly.",
+                'pace_feedback': f"Your fluency score is {pace_score}%. Try to maintain a steady speaking rhythm." if metrics_data else "Focus on maintaining an appropriate speaking pace - not too fast, not too slow.",
+                'confidence_feedback': f"Detected {filler_count} filler words. Reduce 'um', 'uh', and similar words to sound more confident.",
+                'engagement_feedback': f"Your prosody score is {engagement_score}%. Use more vocal variety to engage listeners." if metrics_data else "Add more energy and enthusiasm to capture audience attention."
             },
             
-            # Speech quality metrics
-            'speech_metrics': metrics_data if metrics_data else {
-                'error': 'Metrics analysis failed',
-                'pronunciation': 0,
-                'accuracy': 0,
-                'fluency': 0,
-                'prosody': 0
+            # Enhancement data (matches frontend structure)
+            'enhancement': {
+                'key_changes': enhanced_data.get('improvements_made', []),
+                'speaking_tips': enhanced_data.get('presentation_tips', []),
+                'summary': f"Your speech has been enhanced by removing filler words and improving flow. Word count changed from {original_word_count} to {enhanced_word_count} words."
             },
             
-            # Enhanced transcript
-            'enhanced_transcript': enhanced_data['enhanced_text'],
-            'enhancement_data': {
-                'improvements_made': enhanced_data.get('improvements_made', []),
-                'presentation_tips': enhanced_data.get('presentation_tips', [])
+            # Speech analysis data (matches frontend structure)
+            'speechAnalysis': {
+                'word_count': original_word_count,
+                'speaking_rate': int((original_word_count / transcription_data.get('duration', 1)) * 60) if transcription_data.get('duration', 0) > 0 else 0,
+                'pace_feedback': f"Speaking rate: {int((original_word_count / transcription_data.get('duration', 1)) * 60)} words per minute. Ideal range is 140-160 WPM." if transcription_data.get('duration', 0) > 0 else "Unable to calculate speaking rate.",
+                'filler_feedback': f"Detected {filler_count} filler words. Focus on pausing instead of using 'um', 'uh', 'like', etc."
             },
             
-            # Generated audio
-            'generated_audio': {
-                'file_path': audio_file_path,
-                'voice_gender': tts_gender,
-                'generation_success': audio_file_path is not None,
-                'error': tts_error
-            },
-            
-            # Component status tracking
-            'component_status': {
-                'metrics': {
-                    'success': metrics_data is not None,
-                    'error': metrics_error
+            # Technical metadata (for debugging/additional info)
+            'technicalData': {
+                'transcription_metadata': {
+                    'language': transcription_data.get('language', 'unknown'),
+                    'duration': float(transcription_data.get('duration', 0)),
+                    'speaker_gender': transcription_data.get('speaker_gender', 'unknown'),
+                    'pitch_hz': float(transcription_data.get('pitch_hz', 0)),
+                    'segments': transcription_data.get('segments', [])
                 },
-                'transcription': {
-                    'success': transcription_data is not None,
-                    'error': transcription_error
+                'speech_metrics': metrics_data if metrics_data else {
+                    'error': 'Metrics analysis failed',
+                    'pronunciation': 0,
+                    'accuracy': 0,
+                    'fluency': 0,
+                    'prosody': 0
                 },
-                'enhancement': {
-                    'success': enhancement_error is None,
-                    'error': enhancement_error
-                },
-                'tts_generation': {
-                    'success': audio_file_path is not None,
+                'generated_audio': {
+                    'file_path': audio_file_path,
+                    'voice_gender': tts_gender,
+                    'generation_success': audio_file_path is not None,
                     'error': tts_error
+                },
+                'component_status': {
+                    'metrics': {
+                        'success': metrics_data is not None,
+                        'error': metrics_error
+                    },
+                    'transcription': {
+                        'success': transcription_data is not None,
+                        'error': transcription_error
+                    },
+                    'enhancement': {
+                        'success': enhancement_error is None,
+                        'error': enhancement_error
+                    },
+                    'tts_generation': {
+                        'success': audio_file_path is not None,
+                        'error': tts_error
+                    }
+                },
+                'analysis_metadata': {
+                    'original_word_count': original_word_count,
+                    'enhanced_word_count': enhanced_word_count,
+                    'estimated_filler_count': filler_count,
+                    'word_reduction': original_word_count - enhanced_word_count,
+                    'processing_timestamp': timestamp,
+                    'has_metrics': metrics_data is not None,
+                    'has_enhancement': enhanced_data is not None,
+                    'has_generated_audio': audio_file_path is not None,
+                    'overall_success': all([
+                        transcription_data is not None,  # This is essential
+                        # Others are optional but tracked
+                    ])
                 }
-            },
-            
-            # Additional analysis metadata
-            'analysis_metadata': {
-                'original_word_count': original_word_count,
-                'enhanced_word_count': enhanced_word_count,
-                'estimated_filler_count': filler_count,
-                'word_reduction': original_word_count - enhanced_word_count,
-                'processing_timestamp': timestamp,
-                'has_metrics': metrics_data is not None,
-                'has_enhancement': enhanced_data is not None,
-                'has_generated_audio': audio_file_path is not None,
-                'overall_success': all([
-                    transcription_data is not None,  # This is essential
-                    # Others are optional but tracked
-                ])
             }
         }
         
         # Convert numpy types to native Python types for JSON serialization
         comprehensive_payload = convert_numpy_types(comprehensive_payload)
         
-        # Final success emission
+        # Final success emission with frontend-compatible summary
         summary_data = {
             'components_completed': sum([
                 metrics_data is not None,
@@ -1233,7 +1263,15 @@ def process_comprehensive_audio(temp_path):
                 audio_file_path is not None
             ]),
             'total_components': 4,
-            'audio_file_location': f'/static/generated_audio/{audio_file_path}' if audio_file_path else None
+            'audio_file_location': f'/static/generated_audio/{audio_file_path}' if audio_file_path else None,
+            'analysis_success': True,
+            'overall_score': comprehensive_payload['overallScore'],
+            'key_metrics': {
+                'word_count': original_word_count,
+                'duration': float(transcription_data.get('duration', 0)),
+                'filler_count': filler_count,
+                'enhancement_available': audio_file_path is not None
+            }
         }
         
         # Convert summary data as well
@@ -1281,7 +1319,6 @@ def process_comprehensive_audio(temp_path):
                 print(f"[WARNING] Could not cleanup temp file: {e}")
         except Exception as e:
             print(f"[WARNING] Failed to cleanup temp file: {e}")
-
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=4000, debug=True)

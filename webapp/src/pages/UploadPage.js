@@ -52,6 +52,30 @@ export default function UploadPage() {
       }
     });
 
+    socketRef.current.on('audio-analysis-update', data => {
+      setProcessingProgress(data.progress);
+      setProcessingMsg(data.message);
+    });
+
+    socketRef.current.on('audio-analysis-complete', data => {
+      setProcessingProgress(100);
+      console.log(data);
+      setProcessingMsg(data.message);
+      setReportData(data.data);
+      setProcessing(false);
+      if (user) {
+        navigate('/audio-report', { state: { reportData: data.data } });
+      } else {
+        setPendingNavigate(true);
+      }
+    });
+
+    socketRef.current.on('audio-analysis-error', data => {
+      console.error('Audio analysis error:', data);
+      setProcessing(false);
+      showToast('Audio analysis failed: ' + data.error);
+    });
+    
     return () => socketRef.current.disconnect();
   }, [navigate, user, reportData]);
 
@@ -85,18 +109,21 @@ export default function UploadPage() {
 
   const onDrop = useCallback(async (acceptedFiles, fileRejections) => {
     if (fileRejections.length) {
-      showToast('Please upload a valid .mp4 video file.');
+      showToast('Please upload a valid audio or video file.');
       return;
     }
     if (!acceptedFiles.length) return;
 
     const file = acceptedFiles[0];
+    const isAudio = file.type.startsWith('audio/');
+    const endpoint = isAudio ? 'http://localhost:4000/api/analyze-audio' : 'http://localhost:4000/api/analyze';
+    const fieldName = isAudio ? 'audio' : 'video';
     const formData = new FormData();
-    formData.append('video', file);
+    formData.append(fieldName, file);
 
     try {
       setUploading(true);
-      await axios.post('http://localhost:4000/api/analyze', formData, {
+      await axios.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: evt => {
           const pct = Math.round((evt.loaded / evt.total) * 100);
@@ -116,7 +143,12 @@ export default function UploadPage() {
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
-    accept: { 'video/mp4': [] },
+    accept: { 
+      'video/mp4': [],
+      'audio/mp3': ['.mp3'],
+      'audio/m4a': ['.m4a'],
+      'audio/wav': ['.wav'],
+    },
     multiple: false,
     noClick: true,
     noKeyboard: true
@@ -395,7 +427,7 @@ export default function UploadPage() {
             <div style={styles.icon}>
               <UploadIcon style={{ width: '8rem', height: '8rem', stroke: '#f9f9ff' }} />
             </div>
-            <div>Drag and drop your video to upload</div>
+            <div>Drag and drop your file to upload</div>
             <button type="button" onClick={open} style={styles.uploadButton}>
               <UploadFile style={{ width: '1.5rem', height: '1.5rem', stroke: '#000' }} />
               Choose Video
