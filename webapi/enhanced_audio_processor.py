@@ -292,40 +292,33 @@ def process_audio_for_presentation(temp_path, processor=None, socketio_instance=
         file_hash = processor.get_file_hash(temp_path)
         cached_result = processor.get_cached_result(file_hash)
         
-        if cached_result:
-            print("[INFO] Using cached transcription result")
-            if socketio_instance:
-                socketio_instance.emit('processing-update', 
-                    {'message': 'Found cached analysis, enhancing...', 'progress': 40})
-        else:
-            # Step 1: Transcription
-            if socketio_instance:
-                socketio_instance.emit('processing-update', 
-                    {'message': 'Transcribing your audio... 🎵', 'progress': 20})
-            
-            import whisper
-            whisper_model = whisper.load_model("turbo", device="cpu")
-            
-            result = whisper_model.transcribe(temp_path, fp16=False, verbose=False)
-            segments = result.get("segments", [])
-            full_text = result.get("text", "").strip()
-            language = result.get("language", "unknown")
-            duration = max(seg.get('end', 0) for seg in segments) if segments else 0
-            
-            # Cache the transcription result
-            cached_result = {
-                'segments': segments,
-                'full_text': full_text,
-                'language': language,
-                'duration': duration
-            }
-            processor.save_to_cache(file_hash, cached_result)
+        # Step 1: Transcription
+        if socketio_instance:
+            socketio_instance.emit('processing-update', 
+                {'message': 'Transcribing your audio... 🎵', 'progress': 20})
         
-        # Extract cached data
-        segments = cached_result['segments']
-        full_text = cached_result['full_text']
-        language = cached_result['language']
-        duration = cached_result['duration']
+        import whisper
+        whisper_model = whisper.load_model("turbo", device="cpu")
+        
+        result = whisper_model.transcribe(temp_path, fp16=False, verbose=False)
+        segments = result.get("segments", [])
+        full_text = result.get("text", "").strip()
+        language = result.get("language", "unknown")
+        duration = max(seg.get('end', 0) for seg in segments) if segments else 0
+        
+        # Cache the transcription result
+        audio_file_data = {
+            'segments': segments,
+            'full_text': full_text,
+            'language': language,
+            'duration': duration
+        }
+        processor.save_to_cache(file_hash, cached_result)
+    
+        segments = audio_file_data['segments']
+        full_text = audio_file_data['full_text']
+        language = audio_file_data['language']
+        duration = audio_file_data['duration']
         
         print(f"[INFO] Transcription: {len(full_text)} characters, {duration:.1f}s")
         

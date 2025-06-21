@@ -26,6 +26,8 @@ from openai import AzureOpenAI, OpenAI
 from itertools import chain         
 import librosa
 import numpy as np       
+from text_metrics import get_metrics
+from whisper_helper import whisper_transcriber
 
 
 torch.backends.cudnn.benchmark = True
@@ -635,25 +637,88 @@ def analyze_audio():
         if not os.path.exists(temp_path):
             return {'error': 'Failed to save audio file'}, 500
             
-        actual_size = os.path.getsize(temp_path)
-        print(f"[INFO] Audio saved: {actual_size / 1024:.2f} KB")
+        # actual_size = os.path.getsize(temp_path)
+        # print(f"[INFO] Audio saved: {actual_size / 1024:.2f} KB")
         
-        if actual_size == 0:
-            return {'error': 'Audio file is empty'}, 400
+        # if actual_size == 0:
+        #     return {'error': 'Audio file is empty'}, 400
 
-        # Check if enhanced audio processor is available
-        if enhanced_audio_processor is None:
-            return {'error': 'Audio processor not available. Check server configuration.'}, 500
+        # # Check if enhanced audio processor is available
+        # if enhanced_audio_processor is None:
+        #     return {'error': 'Audio processor not available. Check server configuration.'}, 500
 
-        # Use enhanced audio processing
-        socketio.start_background_task(process_audio_for_presentation, temp_path, enhanced_audio_processor, socketio)
-        return {'status': 'audio processing started'}
+        # # Use enhanced audio processing
+        # socketio.start_background_task(process_audio_for_presentation, temp_path, enhanced_audio_processor, socketio)
+
+
+        data = get_metrics(temp_path)
+        print(data)
+        if data:
+            return jsonify({
+                'status': 'OK',
+                'data': data
+            }), 200
+        if data is False:
+            return jsonify({
+                'status': 'warning',
+                'message': 'No segments recognised' 
+            }), 400
+        
+        return jsonify({
+            'status':'error',
+            'data': data
+        }), 400
+    
+
+        # return {'status': 'audio processing started'}
 
     except Exception as e:
         print(f"[ERROR] analyze_audio endpoint failed: {e}")
         import traceback
         traceback.print_exc()
         return {'error': str(e)}, 500
+
+
+
+@app.route('/api/transcribe-audio', methods=['POST'])
+def transcribe_audio():
+    if 'audio' not in request.files:
+        return {'error': 'No audio file found in request'}, 400
+            
+    audio = request.files['audio']
+    
+    if audio.filename == '':
+        return {'error': 'No audio file selected'}, 400
+        
+    print(f"[INFO] Received audio: {audio.filename}")
+    
+    # Create unique temporary path with timestamp
+    timestamp = int(time.time())
+    filename_base = os.path.splitext(audio.filename)[0]
+    temp_filename = f"{filename_base}_{timestamp}.tmp"
+    temp_path = os.path.join(tempfile.gettempdir(), temp_filename)
+    
+    audio.save(temp_path)
+    
+    if not os.path.exists(temp_path):
+        return {'error': 'Failed to save audio file'}, 500
+    try:
+        data = whisper_transcriber(temp_path)
+        return jsonify({
+            'status': 'OK',
+            'data': data,
+            'complete_transcript': data['full_text']
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] transcribe_audio endpoint failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'error': str(e)}, 500
+
+
+
+
+
 
 @app.route('/static/generated_audio/<filename>')
 def serve_generated_audio(filename):
