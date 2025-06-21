@@ -12,7 +12,8 @@ runs/
 *.zip
 
 node_modules
-
+node_modules/
+static/
 .env
 
 # Distribution / packaging

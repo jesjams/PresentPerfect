@@ -28,6 +28,8 @@ import librosa
 import numpy as np       
 from text_metrics import get_metrics
 from whisper_helper import whisper_transcriber
+from text_to_speech import get_speech
+from enhanced_transcript import enhance_transcript_for_presentation
 
 
 torch.backends.cudnn.benchmark = True
@@ -832,6 +834,454 @@ def debug_audio_files():
             return jsonify({'error': 'Audio directory not found', 'directory': audio_dir})
     except Exception as e:
         return jsonify({'error': str(e)})
+
+def convert_numpy_types(obj):
+    """Recursively convert numpy types to native Python types for JSON serialization"""
+    if isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif hasattr(obj, 'item'):  # numpy scalar
+        return obj.item()
+    else:
+        return obj
+
+@app.route('/api/new_audio_analysis', methods=['POST'])
+def new_audio_analysis():
+    try:
+        reset_state()
+        
+        if 'audio' not in request.files:
+            return {'error': 'No audio file found in request'}, 400
+            
+        audio = request.files['audio']
+        
+        if audio.filename == '':
+            return {'error': 'No audio file selected'}, 400
+            
+        print(f"[INFO] Received audio for comprehensive analysis: {audio.filename}")
+        
+        # Create unique temporary path with timestamp
+        timestamp = int(time.time())
+        filename_base = os.path.splitext(audio.filename)[0]
+        original_ext = os.path.splitext(audio.filename)[1] or '.mp3'  # Keep original extension
+        temp_filename = f"{filename_base}_{timestamp}{original_ext}"
+        temp_path = os.path.join(tempfile.gettempdir(), temp_filename)
+        
+        # Ensure the temp directory exists
+        os.makedirs(tempfile.gettempdir(), exist_ok=True)
+        
+        audio.save(temp_path)
+        
+        # Ensure file is completely written (Windows file system delay)
+        time.sleep(0.5)
+        
+        if not os.path.exists(temp_path):
+            return {'error': 'Failed to save audio file'}, 500
+            
+        print(f"[INFO] Audio saved for analysis: {temp_path} ({os.path.getsize(temp_path)} bytes)")
+        
+        # Start background processing
+        socketio.start_background_task(process_comprehensive_audio, temp_path)
+        
+        return {'status': 'comprehensive audio analysis started'}
+
+    except Exception as e:
+        print(f"[ERROR] new_audio_analysis endpoint failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'error': str(e)}, 500
+
+
+def process_comprehensive_audio(temp_path):
+    """Process audio with metrics, transcription, enhancement, and TTS generation"""
+    try:
+        # Normalize path for Windows compatibility
+        temp_path = os.path.normpath(temp_path)
+        print(f"[INFO] Processing audio file: {temp_path}")
+        
+        # Verify file exists and is readable
+        if not os.path.exists(temp_path):
+            socketio.emit('audio-analysis-error', {
+                'error': f'Temporary file not found: {temp_path}',
+                'stage': 'file_verification'
+            })
+            return
+            
+        # Check file size
+        file_size = os.path.getsize(temp_path)
+        if file_size == 0:
+            socketio.emit('audio-analysis-error', {
+                'error': 'Audio file is empty',
+                'stage': 'file_verification'
+            })
+            return
+            
+        # Debug: Check file format
+        try:
+            with open(temp_path, 'rb') as f:
+                header = f.read(12)
+                if header.startswith(b'RIFF'):
+                    file_type = "WAV"
+                elif header.startswith(b'ID3') or header[0:2] == b'\xff\xfb':
+                    file_type = "MP3"
+                else:
+                    file_type = f"Unknown (header: {header[:4]})"
+                print(f"[INFO] Detected file type: {file_type}")
+        except Exception as e:
+            print(f"[WARNING] Could not detect file type: {e}")
+            
+        print(f"[INFO] Audio file verified: {file_size} bytes")
+        
+        # Progress tracking
+        socketio.emit('audio-analysis-update', {
+            'message': 'Starting comprehensive audio analysis...',
+            'progress': 10,
+            'stage': 'initialization'
+        })
+        
+        # Step 1: Run metrics and transcription in parallel
+        socketio.emit('audio-analysis-update', {
+            'message': 'Analyzing speech metrics and transcribing audio...',
+            'progress': 20,
+            'stage': 'parallel_analysis'
+        })
+        
+        executor = ThreadPoolExecutor(max_workers=2)
+        
+        # Create wrapper functions with better error handling
+        def safe_get_metrics(path):
+            try:
+                print(f"[INFO] Starting metrics analysis for: {path}")
+                # Check if file exists and has content
+                if not os.path.exists(path):
+                    raise FileNotFoundError(f"Metrics: Audio file not found: {path}")
+                if os.path.getsize(path) == 0:
+                    raise ValueError("Metrics: Audio file is empty")
+                
+                result = get_metrics(path)
+                if result is False:
+                    raise ValueError("Metrics: No segments recognized in audio")
+                return result
+            except Exception as e:
+                print(f"[ERROR] Metrics analysis failed: {e}")
+                
+                # Try manual conversion if it's a format issue
+                if "RIFF id" in str(e) or "file does not start with RIFF" in str(e):
+                    try:
+                        print("[INFO] Attempting manual WAV conversion for metrics...")
+                        import subprocess
+                        base_path = os.path.splitext(path)[0]
+                        converted_path = base_path + "_converted.wav"
+                        
+                        subprocess.run([
+                            "ffmpeg", "-y", "-i", path,
+                            "-acodec", "pcm_s16le", "-ac", "1", "-ar", "16000", 
+                            converted_path
+                        ], check=True, capture_output=True)
+                        
+                        if os.path.exists(converted_path):
+                            result = get_metrics(converted_path)
+                            # Clean up converted file
+                            try:
+                                os.remove(converted_path)
+                            except:
+                                pass
+                            return result
+                    except Exception as conv_error:
+                        print(f"[ERROR] Manual conversion also failed: {conv_error}")
+                
+                import traceback
+                traceback.print_exc()
+                raise e
+        
+        def safe_whisper_transcriber(path):
+            try:
+                print(f"[INFO] Starting Whisper transcription for: {path}")
+                # Ensure file is accessible before transcription
+                if not os.path.exists(path):
+                    raise FileNotFoundError(f"Whisper: Audio file not found: {path}")
+                if os.path.getsize(path) == 0:
+                    raise ValueError("Whisper: Audio file is empty")
+                    
+                result = whisper_transcriber(path)
+                if not result or not result.get('full_text'):
+                    raise ValueError("Whisper: Failed to transcribe audio or no text detected")
+                return result
+            except Exception as e:
+                print(f"[ERROR] Whisper transcription failed: {e}")
+                import traceback
+                traceback.print_exc()
+                raise e
+        
+        # Submit both tasks with the safe wrappers
+        metrics_future = executor.submit(safe_get_metrics, temp_path)
+        transcription_future = executor.submit(safe_whisper_transcriber, temp_path)
+        
+        # Wait for metrics
+        socketio.emit('audio-analysis-update', {
+            'message': 'Processing speech quality metrics...',
+            'progress': 35,
+            'stage': 'metrics'
+        })
+        
+        metrics_error = None
+        try:
+            metrics_data = metrics_future.result(timeout=60)  # 1 minute timeout
+        except Exception as e:
+            print(f"[ERROR] Metrics analysis failed: {e}")
+            metrics_data = None
+            metrics_error = str(e)
+        
+        # Wait for transcription
+        socketio.emit('audio-analysis-update', {
+            'message': 'Completing transcription and gender detection...',
+            'progress': 50,
+            'stage': 'transcription'
+        })
+        
+        transcription_error = None
+        try:
+            transcription_data = transcription_future.result(timeout=120)  # 2 minute timeout
+        except Exception as e:
+            print(f"[ERROR] Transcription failed: {e}")
+            transcription_data = None
+            transcription_error = str(e)
+        
+        # Check if we have essential data to continue
+        if not transcription_data or not transcription_data.get('full_text'):
+            error_data = {
+                'error': 'Failed to transcribe audio. Cannot proceed with analysis.',
+                'stage': 'transcription',
+                'details': transcription_error,
+                'partial_results': {
+                    'metrics_success': metrics_data is not None,
+                    'metrics_error': metrics_error,
+                    'transcription_success': False,
+                    'transcription_error': transcription_error
+                }
+            }
+            # Convert any numpy types in error data
+            error_data = convert_numpy_types(error_data)
+            socketio.emit('audio-analysis-error', error_data)
+            return
+        
+        # Step 2: Enhance transcript
+        socketio.emit('audio-analysis-update', {
+            'message': 'Enhancing transcript for optimal presentation...',
+            'progress': 65,
+            'stage': 'enhancement'
+        })
+        
+        enhancement_error = None
+        try:
+            enhanced_data = enhance_transcript_for_presentation(transcription_data['full_text'])
+        except Exception as e:
+            print(f"[ERROR] Transcript enhancement failed: {e}")
+            enhancement_error = str(e)
+            # Fallback to original transcript
+            enhanced_data = {
+                "enhanced_text": transcription_data['full_text'],
+                "improvements_made": ["Enhancement failed - using original transcript"],
+                "presentation_tips": ["Practice with the original transcript"]
+            }
+        
+        # Step 3: Generate TTS audio
+        socketio.emit('audio-analysis-update', {
+            'message': 'Generating optimized speech audio...',
+            'progress': 80,
+            'stage': 'tts_generation'
+        })
+        
+        # Use detected gender from transcription, fallback to Female
+        detected_gender = transcription_data.get('speaker_gender', 'unknown')
+        if detected_gender.lower() == 'male':
+            tts_gender = 'Male'
+        elif detected_gender.lower() == 'female':
+            tts_gender = 'Female'
+        else:
+            tts_gender = 'Female'  # Default fallback
+        
+        try:
+            # Generate unique filename for the enhanced audio
+            timestamp = int(time.time())
+            enhanced_filename = f"enhanced_speech_{timestamp}"
+            
+            success, audio_result = get_speech(
+                text=enhanced_data['enhanced_text'],
+                gender=tts_gender,
+                filename=enhanced_filename
+            )
+            
+            if not success:
+                print(f"[ERROR] TTS generation failed: {audio_result}")
+                audio_file_path = None
+                tts_error = audio_result
+            else:
+                audio_file_path = audio_result
+                tts_error = None
+                
+        except Exception as e:
+            print(f"[ERROR] TTS generation exception: {e}")
+            audio_file_path = None
+            tts_error = str(e)
+        
+        # Step 4: Compile comprehensive results
+        socketio.emit('audio-analysis-update', {
+            'message': 'Compiling analysis results...',
+            'progress': 95,
+            'stage': 'compilation'
+        })
+        
+        # Calculate additional metadata
+        original_word_count = len(transcription_data['full_text'].split()) if transcription_data['full_text'] else 0
+        enhanced_word_count = len(enhanced_data['enhanced_text'].split()) if enhanced_data['enhanced_text'] else 0
+        
+        # Count filler words in original (rough estimate)
+        filler_words = ['um', 'uh', 'like', 'you know', 'basically', 'actually', 'so', 'well']
+        original_lower = transcription_data['full_text'].lower() if transcription_data['full_text'] else ""
+        filler_count = sum(original_lower.count(filler) for filler in filler_words)
+        
+        # Build comprehensive payload
+        comprehensive_payload = {
+            # Original transcription data
+            'original_transcript': transcription_data['full_text'],
+            'transcription_metadata': {
+                'language': transcription_data.get('language', 'unknown'),
+                'duration': float(transcription_data.get('duration', 0)),  # Ensure it's a Python float
+                'speaker_gender': transcription_data.get('speaker_gender', 'unknown'),
+                'pitch_hz': float(transcription_data.get('pitch_hz', 0)),  # Convert numpy float32 to Python float
+                'segments': transcription_data.get('segments', [])
+            },
+            
+            # Speech quality metrics
+            'speech_metrics': metrics_data if metrics_data else {
+                'error': 'Metrics analysis failed',
+                'pronunciation': 0,
+                'accuracy': 0,
+                'fluency': 0,
+                'prosody': 0
+            },
+            
+            # Enhanced transcript
+            'enhanced_transcript': enhanced_data['enhanced_text'],
+            'enhancement_data': {
+                'improvements_made': enhanced_data.get('improvements_made', []),
+                'presentation_tips': enhanced_data.get('presentation_tips', [])
+            },
+            
+            # Generated audio
+            'generated_audio': {
+                'file_path': audio_file_path,
+                'voice_gender': tts_gender,
+                'generation_success': audio_file_path is not None,
+                'error': tts_error
+            },
+            
+            # Component status tracking
+            'component_status': {
+                'metrics': {
+                    'success': metrics_data is not None,
+                    'error': metrics_error
+                },
+                'transcription': {
+                    'success': transcription_data is not None,
+                    'error': transcription_error
+                },
+                'enhancement': {
+                    'success': enhancement_error is None,
+                    'error': enhancement_error
+                },
+                'tts_generation': {
+                    'success': audio_file_path is not None,
+                    'error': tts_error
+                }
+            },
+            
+            # Additional analysis metadata
+            'analysis_metadata': {
+                'original_word_count': original_word_count,
+                'enhanced_word_count': enhanced_word_count,
+                'estimated_filler_count': filler_count,
+                'word_reduction': original_word_count - enhanced_word_count,
+                'processing_timestamp': timestamp,
+                'has_metrics': metrics_data is not None,
+                'has_enhancement': enhanced_data is not None,
+                'has_generated_audio': audio_file_path is not None,
+                'overall_success': all([
+                    transcription_data is not None,  # This is essential
+                    # Others are optional but tracked
+                ])
+            }
+        }
+        
+        # Convert numpy types to native Python types for JSON serialization
+        comprehensive_payload = convert_numpy_types(comprehensive_payload)
+        
+        # Final success emission
+        summary_data = {
+            'components_completed': sum([
+                metrics_data is not None,
+                transcription_data is not None,
+                enhancement_error is None,
+                audio_file_path is not None
+            ]),
+            'total_components': 4,
+            'audio_file_location': f'/static/generated_audio/{audio_file_path}' if audio_file_path else None
+        }
+        
+        # Convert summary data as well
+        summary_data = convert_numpy_types(summary_data)
+        
+        socketio.emit('audio-analysis-complete', {
+            'message': 'Comprehensive audio analysis complete!',
+            'progress': 100,
+            'stage': 'complete',
+            'data': comprehensive_payload,
+            'summary': summary_data
+        })
+        
+        print("[INFO] Comprehensive audio analysis completed successfully")
+        
+    except Exception as e:
+        print(f"[ERROR] Comprehensive audio processing failed: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        error_data = {
+            'error': f'Processing failed: {str(e)}',
+            'stage': 'processing'
+        }
+        # Convert any numpy types in error data
+        error_data = convert_numpy_types(error_data)
+        socketio.emit('audio-analysis-error', error_data)
+    
+    finally:
+        # Cleanup temporary file
+        try:
+            # Wait a bit to ensure all processes are done with the file
+            time.sleep(1)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                print(f"[INFO] Cleaned up temporary file: {temp_path}")
+        except PermissionError:
+            # File might still be in use, try again after a delay
+            time.sleep(2)
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    print(f"[INFO] Cleaned up temporary file (delayed): {temp_path}")
+            except Exception as e:
+                print(f"[WARNING] Could not cleanup temp file: {e}")
+        except Exception as e:
+            print(f"[WARNING] Failed to cleanup temp file: {e}")
+
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=4000, debug=True)
