@@ -1,5 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Tooltip
+} from 'recharts';
 
 export default function AudioReportPage() {
   const location = useLocation();
@@ -35,12 +43,23 @@ export default function AudioReportPage() {
 
   const styles = {
     container: {
-      maxWidth: '1400px',
-      margin: '0 auto',
-      padding: '2rem',
-      backgroundColor: '#f9f9ff',
+      backgroundColor: '#f9f9f9',
       minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
+      padding: '20px',
+      fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif'
+    },
+    reportBoxOuter: {
+      backgroundColor: '#5D2E8C',
+      borderRadius: '20px',
+      padding: '10px',
+      maxWidth: '1200px',
+      minWidth: '600px',
+      margin: '0 auto'
+    },
+    reportBoxInner: {
+      border: '2px dotted white',
+      borderRadius: '15px',
+      padding: '20px'
     },
     header: {
       textAlign: 'center',
@@ -83,6 +102,29 @@ export default function AudioReportPage() {
       fontSize: '1.4rem',
       fontWeight: 'bold',
       color: '#5D2E8C'
+    },
+    scoreRadarContainer: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: '2rem',
+      maxWidth: '1200px',
+      margin: '0 auto 3rem auto'
+    },
+    radarCard: {
+      backgroundColor: 'white',
+      borderRadius: '1.5rem',
+      padding: '2rem',
+      boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
+      border: '1px solid #e0e0e0',
+      textAlign: 'center',
+      flex: '1 1 350px'
+    },
+    radarTitle: {
+      fontSize: '1.3rem',
+      color: '#5D2E8C',
+      fontWeight: '600',
+      marginBottom: '1rem'
     },
     scoreSection: {
       display: 'grid',
@@ -337,6 +379,13 @@ export default function AudioReportPage() {
   const wordCount = safeNumber(speechAnalysis.word_count, 0);
   const speakingRate = safeNumber(speechAnalysis.speaking_rate, 0);
 
+  const radarData = [
+    { subject: 'Clarity', A: clarityScore, fullMark: 100 },
+    { subject: 'Pace', A: paceScore, fullMark: 100 },
+    { subject: 'Confidence', A: confidenceScore, fullMark: 100 },
+    { subject: 'Engagement', A: engagementScore, fullMark: 100 }
+  ];
+
   // Safe helper functions for display
   const getScoreColor = (score) => {
     const safeScore = safeNumber(score, 0);
@@ -412,64 +461,79 @@ export default function AudioReportPage() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Presentation Speech Analysis</h1>
-        <p style={styles.subtitle}>AI-Powered Speech Coaching & Enhancement</p>
-        
-        {/* Meta Information */}
-        <div style={styles.metaInfo}>
-          <div style={styles.metaItem}>
-            <div style={styles.metaLabel}>Duration</div>
-            <div style={styles.metaValue}>{formatDuration(duration)}</div>
+      <div style={styles.reportBoxOuter}>
+        <div style={styles.reportBoxInner}>
+          <div style={styles.header}>
+            <h1 style={styles.title}>Presentation Speech Analysis</h1>
+            <p style={styles.subtitle}>AI-Powered Speech Coaching & Enhancement</p>
+          {/* Meta Information */}
+          <div style={styles.metaInfo}>
+            <div style={styles.metaItem}>
+              <div style={styles.metaLabel}>Duration</div>
+              <div style={styles.metaValue}>{formatDuration(duration)}</div>
+            </div>
+            <div style={styles.metaItem}>
+              <div style={styles.metaLabel}>Language</div>
+              <div style={styles.metaValue}>{safeLanguage}</div>
+            </div>
+            <div style={styles.metaItem}>
+              <div style={styles.metaLabel}>Word Count</div>
+              <div style={styles.metaValue}>{wordCount}</div>
+            </div>
+            <div style={styles.metaItem}>
+              <div style={styles.metaLabel}>Speaking Rate</div>
+              <div style={styles.metaValue}>{speakingRate} WPM</div>
+            </div>
           </div>
-          <div style={styles.metaItem}>
-            <div style={styles.metaLabel}>Language</div>
-            <div style={styles.metaValue}>{safeLanguage}</div>
-          </div>
-          <div style={styles.metaItem}>
-            <div style={styles.metaLabel}>Word Count</div>
-            <div style={styles.metaValue}>{wordCount}</div>
-          </div>
-          <div style={styles.metaItem}>
-            <div style={styles.metaLabel}>Speaking Rate</div>
-            <div style={styles.metaValue}>{speakingRate} WPM</div>
-          </div>
-        </div>
 
-        {/* Presentation Scores */}
-        <div style={styles.scoreSection}>
-          <div style={styles.scoreCard}>
-            <div style={{...styles.scoreNumber, color: getScoreColor(clarityScore)}}>
-              {clarityScore}
+          {/* Presentation Scores */}
+          <div style={styles.scoreRadarContainer}>
+            <div style={styles.radarCard}>
+              <div style={styles.radarTitle}>Performance Radar</div>
+              <RadarChart width={400} height={300} cx={200} cy={150} outerRadius={120} data={radarData}>
+                <PolarGrid stroke="#5D2E8C" />
+                <PolarAngleAxis dataKey="subject" stroke="#5D2E8C" />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar name="Score" dataKey="A" stroke="#5D2E8C" fill="#E2779C" fillOpacity={0.5} />
+                <Tooltip />
+              </RadarChart>
             </div>
-            <div style={styles.scoreLabel}>Clarity Score</div>
-          </div>
-          <div style={styles.scoreCard}>
-            <div style={{...styles.scoreNumber, color: getScoreColor(paceScore)}}>
-              {paceScore}
+            <div style={styles.scoreSection}>
+              <div style={styles.scoreCard}>
+                <div style={{...styles.scoreNumber, color: getScoreColor(clarityScore)}}>
+                  {clarityScore}
+                </div>
+                <div style={styles.scoreLabel}>Clarity Score</div>
+              </div>
+              <div style={styles.scoreCard}>
+                <div style={{...styles.scoreNumber, color: getScoreColor(paceScore)}}>
+                  {paceScore}
+                </div>
+                <div style={styles.scoreLabel}>Pace Score</div>
+              </div>
+              <div style={styles.scoreCard}>
+                <div style={{...styles.scoreNumber, color: getScoreColor(confidenceScore)}}>
+                  {confidenceScore}
+                </div>
+                <div style={styles.scoreLabel}>Confidence Score</div>
+              </div>
+              <div style={styles.scoreCard}>
+                <div style={{...styles.scoreNumber, color: getScoreColor(engagementScore)}}>
+                  {engagementScore}
+                </div>
+                <div style={styles.scoreLabel}>Engagement Score</div>
+              </div>
+              <div style={styles.scoreCard}>
+                <div style={{...styles.scoreNumber, color: getScoreColor(overallScore)}}>
+                  {overallScore}
+                </div>
+                <div style={styles.scoreLabel}>Overall Score</div>
+              </div>
             </div>
-            <div style={styles.scoreLabel}>Pace Score</div>
-          </div>
-          <div style={styles.scoreCard}>
-            <div style={{...styles.scoreNumber, color: getScoreColor(confidenceScore)}}>
-              {confidenceScore}
-            </div>
-            <div style={styles.scoreLabel}>Confidence Score</div>
-          </div>
-          <div style={styles.scoreCard}>
-            <div style={{...styles.scoreNumber, color: getScoreColor(engagementScore)}}>
-              {engagementScore}
-            </div>
-            <div style={styles.scoreLabel}>Engagement Score</div>
-          </div>
-          <div style={styles.scoreCard}>
-            <div style={{...styles.scoreNumber, color: getScoreColor(overallScore)}}>
-              {overallScore}
-            </div>
-            <div style={styles.scoreLabel}>Overall Score</div>
           </div>
         </div>
-      </div>
+        {/* End header */}
+
 
       {/* Enhanced Speech Section */}
       {enhancedTranscript && (
@@ -603,6 +667,8 @@ export default function AudioReportPage() {
             <span style={styles.metricTitle}>Engagement Analysis</span>
           </div>
           <div style={styles.feedback}>{engagementFeedback}</div>
+        </div>
+      </div>
         </div>
       </div>
     </div>
