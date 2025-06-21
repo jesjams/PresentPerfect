@@ -12,7 +12,6 @@ runs/
 *.zip
 
 node_modules
-yolov8n.pt
 
 .env
 

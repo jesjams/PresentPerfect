@@ -64,6 +64,8 @@ if not MODEL_PATH:
     MODEL_PATH = os.path.join(Path(__file__).resolve().parent, "best.pt")
 emotion_model = YOLO(MODEL_PATH)
 
+gaze_model = YOLO("yolov8s-pose.pt")
+
 whisper_model = whisper.load_model("turbo", device=DEVICE) 
 
 USE_AZURE = os.getenv("USE_AZURE_OPENAI", "false").lower() == "true"
@@ -113,6 +115,12 @@ face_mesh = mp_face.FaceMesh(
     min_tracking_confidence=0.1
 )
 
+YAW_THR_DEG          = 1.5         # ±15° ⇒ left / right
+PITCH_UP_EDGE_DEG    = -25        # ≥ –20° ⇒ up
+PITCH_DOWN_EDGE_DEG  = -37        # <  –30° ⇒ down
+
+NOSE, LEYE, REYE = 0, 1, 2   # COCO-pose indices
+
 G_MODEL_POINTS = np.array([
     (0.0,   0.0,   0.0),
     (0.0, -63.6, -12.5),
@@ -132,8 +140,19 @@ SIDE_THR     = 10.0
 FORWARD_THR  = 10.0
 YAW_THR      = 30
 
-STRAIGHT_THRESHOLD_DEG = 7.0  
-GESTURE_RATIO          = 0.22
+STRAIGHT_THRESHOLD_DEG = 10.0  
+GESTURE_RATIO          = 0.15
+
+CONF_THRES        = 0.25                # bbox / kp confidence
+KEY_CONF_THR      = 0.10                # accept weaker joints
+HIP_GESTURE_R     = 0.15                # original hip-distance ratio
+SHOULDER_FACTOR   = 0.50                # hipRatio ≈ 0.5 × shoulderWidth
+
+# COCO key-point indices (YOLO v8 pose uses these)
+L_SHO, R_SHO = 5, 6
+L_HIP, R_HIP = 11, 12
+L_WR,  R_WR  = 9, 10
+
 
 BATCH              = 1
 NUM_WORKERS        = os.cpu_count()
@@ -192,24 +211,46 @@ def get_random_message(last_change, interval=10):
         return random.choice(FUN_MESSAGES), now
     return None, last_change
 
+def _yaw_pitch_from_keypoints(kxy):
+    """
+    Return (yaw°, pitch°) using nose & eyes geometry.
+    kxy : (17, 2) array in **normalised** coords.
+    """
+    nx, ny = kxy[NOSE]
+    lx, ly = kxy[LEYE]
+    rx, ry = kxy[REYE]
+
+    eye_mid_x = 0.5 * (lx + rx)
+    eye_mid_y = 0.5 * (ly + ry)
+    eye_w     = max(abs(lx - rx), 1e-6)
+
+    yaw   = math.degrees(math.atan2(nx - eye_mid_x, eye_w))
+    pitch = math.degrees(math.atan2(eye_mid_y - ny, eye_w))
+    return yaw, pitch
+
 def get_direction(yaw, pitch):
-    if yaw >  YAW_THR:
-        h = "right"
-    elif yaw < -YAW_THR:
-        h = "left"
+    """
+      straight : −30° ≤ pitch < −20°
+      up       : pitch ≥ −20°
+      down     : pitch < −30°
+    """
+    horiz = "right" if yaw >  YAW_THR_DEG else \
+            "left"  if yaw < -YAW_THR_DEG else ""
+
+    if pitch >= PITCH_UP_EDGE_DEG:
+        vert = "up"
+    elif pitch < PITCH_DOWN_EDGE_DEG:
+        vert = "down"
     else:
-        h = ""
-    if 180 >= pitch >= 160 or -180 <= pitch <= -160:
-        v = ""
-    else:
-        v = "down" if pitch < 0 else "up"
-    if not h and not v:
+        vert = ""
+
+    if not horiz and not vert:
         return "straight"
-    if not v:
-        return h
-    if not h:
-        return v
-    return f"{v}-{h}"
+    if not vert:
+        return horiz
+    if not horiz:
+        return vert
+    return f"{vert}-{horiz}"
 
 #LLM CALL
 def get_feedback_payload(
@@ -362,60 +403,75 @@ def movement_batch(batch_rgbs, batch_secs):
         label_shoulder = "Shoulders Straight" if abs(angle_deg) <= STRAIGHT_THRESHOLD_DEG else "Shoulders Tilted"
         shoulder_tilt_per_second[sec].append(label_shoulder)
 
-        #HAND STATE  (gesturing vs at-side)
-        l_wr = lm[mp_pose.PoseLandmark.LEFT_WRIST.value]
-        r_wr = lm[mp_pose.PoseLandmark.RIGHT_WRIST.value]
-        hip_mid_x = (l_hp.x + r_hp.x) / 2.0
-        hip_mid_y = (l_hp.y + r_hp.y) / 2.0
 
-        dist_l = math.hypot(l_wr.x - hip_mid_x, l_wr.y - hip_mid_y)
-        dist_r = math.hypot(r_wr.x - hip_mid_x, r_wr.y - hip_mid_y)
-        is_gesturing = max(dist_l, dist_r) > GESTURE_RATIO
-        label_hands  = "Gesturing" if is_gesturing else "Idle Hands"
+def gesture_batch(batch_rgbs, batch_secs):
+    """
+    • batch_rgbs : list[np.ndarray]  – RGB frames
+    • batch_secs : list[int]        – matching second stamp
+
+    Side-effect:
+        gesture_per_second[sec].append("Gesturing" | "Idle Hands")
+    """
+
+    global processed_frames  # direct update, no processed_lock
+
+    # One YOLO forward pass for the whole mini-batch
+    results = gaze_model(batch_rgbs, conf=CONF_THRES, verbose=False)
+
+    for sec, det in zip(batch_secs, results):
+        label_hands = "Idle Hands"          # default
+
+        if det.boxes and det.boxes.shape[0]:
+            kxy   = det.keypoints.xyn[0].cpu().numpy()   # (17,2) normalised
+            kconf = det.keypoints.conf[0].cpu().numpy()
+
+            if kconf[[L_WR, R_WR]].min() >= KEY_CONF_THR:
+
+                # choose torso anchor: hips if good, else shoulders
+                if kconf[[L_HIP, R_HIP]].min() >= KEY_CONF_THR:
+                    ref_x = (kxy[L_HIP][0] + kxy[R_HIP][0]) / 2
+                    ref_y = (kxy[L_HIP][1] + kxy[R_HIP][1]) / 2
+                    thresh = HIP_GESTURE_R
+                elif kconf[[L_SHO, R_SHO]].min() >= KEY_CONF_THR:
+                    ref_x = (kxy[L_SHO][0] + kxy[R_SHO][0]) / 2
+                    ref_y = (kxy[L_SHO][1] + kxy[R_SHO][1]) / 2
+                    shoulder_w = max(abs(kxy[L_SHO][0] - kxy[R_SHO][0]), 1e-3)
+                    thresh = shoulder_w * SHOULDER_FACTOR
+                else:
+                    ref_x = ref_y = None   # no stable anchor
+
+                if ref_x is not None:
+                    d_l = math.hypot(kxy[L_WR][0] - ref_x,
+                                     kxy[L_WR][1] - ref_y)
+                    d_r = math.hypot(kxy[R_WR][0] - ref_x,
+                                     kxy[R_WR][1] - ref_y)
+                    if max(d_l, d_r) > thresh:
+                        label_hands = "Gesturing"
+
+        # append label without state_lock
         gesture_per_second[sec].append(label_hands)
 
 def gaze_batch(batch_rgbs, batch_secs, CAM_MAT, DIST, W, H):
-    for img_rgb, sec in zip(batch_rgbs, batch_secs):
-        # process frame for face landmarks
-        res = face_mesh.process(img_rgb)
-        if not res.multi_face_landmarks:
-            # no face detected: assign center gaze
-            gaze_per_second[sec].append(get_direction(0.0, 0.0))
-            continue
+    """
+    batch_rgbs : list[np.ndarray]  (RGB frames)
+    batch_secs : list[int]         (second-timestamp for each frame)
 
-        lm = res.multi_face_landmarks[0]
-        pts2d = np.array([
-            (lm.landmark[LANDMARK_IDS["nose_tip"]].x  * W,
-             lm.landmark[LANDMARK_IDS["nose_tip"]].y  * H),
-            (lm.landmark[LANDMARK_IDS["chin"]].x       * W,
-             lm.landmark[LANDMARK_IDS["chin"]].y       * H),
-            (lm.landmark[LANDMARK_IDS["left_eye_outer"]].x  * W,
-             lm.landmark[LANDMARK_IDS["left_eye_outer"]].y  * H),
-            (lm.landmark[LANDMARK_IDS["right_eye_outer"]].x * W,
-             lm.landmark[LANDMARK_IDS["right_eye_outer"]].y * H),
-            (lm.landmark[LANDMARK_IDS["mouth_left"]].x  * W,
-             lm.landmark[LANDMARK_IDS["mouth_left"]].y  * H),
-            (lm.landmark[LANDMARK_IDS["mouth_right"]].x * W,
-             lm.landmark[LANDMARK_IDS["mouth_right"]].y * H)
-        ], dtype=np.float64)
+    Side-effect: appends gaze label into gaze_per_second[sec].
+    *CAM_MAT, DIST, W, H are unused but kept for interface parity.
+    """
 
-        # estimate head pose
-        ok, rvec, _ = cv2.solvePnP(
-            G_MODEL_POINTS, pts2d, CAM_MAT, DIST,
-            flags=cv2.SOLVEPNP_ITERATIVE
-        )
-        if not ok:
-            # PnP failed: assign center gaze
-            gaze_per_second[sec].append(get_direction(0.0, 0.0))
-            continue
+    results = gaze_model(batch_rgbs, verbose=False)
+    for sec, det in zip(batch_secs, results):
+        direction = "straight"  # default if nothing good is detected
 
-        # convert rotation vector to matrix and extract angles
-        rmat, _ = cv2.Rodrigues(rvec)
-        angles, *_ = cv2.RQDecomp3x3(rmat)
-        yaw, pitch = angles[1], angles[0]
+        if det.boxes and det.boxes.shape[0]:
+            kxy   = det.keypoints.xyn[0].cpu().numpy()   # (17,2)
+            kconf = det.keypoints.conf[0].cpu().numpy()
+            if kconf[[NOSE, LEYE, REYE]].min() >= 0.20:
+                yaw, pitch = _yaw_pitch_from_keypoints(kxy)
+                direction  = get_direction(yaw, pitch)
 
-        # append the computed gaze direction
-        gaze_per_second[sec].append(get_direction(yaw, pitch))
+        gaze_per_second[sec].append(direction)
 
 #Flask route 
 @app.route('/api/analyze', methods=['POST'])
@@ -537,7 +593,8 @@ def process_video(temp_path):
         futs = [
             pool.submit(emotion_batch,  frames, W, H, secs),
             pool.submit(gaze_batch,     rgbs, secs, CAM_MAT, DIST, W, H),
-            pool.submit(movement_batch, rgbs, secs)
+            pool.submit(movement_batch, rgbs, secs),
+            pool.submit(gesture_batch, rgbs, secs)           
         ]
         wait(futs)
 

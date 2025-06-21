@@ -125,15 +125,15 @@ export default function ReportPage() {
     return `rgba(107, 76, 175, ${baseAlpha + extraAlpha})`;
   };
   const gazePercentages = {
-    'up left': ((gazeCounts['up left'] || 0) / total * 100).toFixed(1),
+    'up left': ((gazeCounts['up-left'] || 0) / total * 100).toFixed(1),
     'up': ((gazeCounts['up'] || 0) / total * 100).toFixed(1),
-    'up right': ((gazeCounts['up right'] || 0) / total * 100).toFixed(1),
+    'up right': ((gazeCounts['up-right'] || 0) / total * 100).toFixed(1),
     'left': ((gazeCounts['left'] || 0) / total * 100).toFixed(1),
     'center': ((gazeCounts['straight'] || 0) / total * 100).toFixed(1),
     'right': ((gazeCounts['right'] || 0) / total * 100).toFixed(1),
-    'down left': ((gazeCounts['down left'] || 0) / total * 100).toFixed(1),
+    'down left': ((gazeCounts['down-left'] || 0) / total * 100).toFixed(1),
     'down': ((gazeCounts['down'] || 0) / total * 100).toFixed(1),
-    'down right': ((gazeCounts['down right'] || 0) / total * 100).toFixed(1)
+    'down right': ((gazeCounts['down-right'] || 0) / total * 100).toFixed(1)
   };
 
   const shoulderPerSecond = Array.from({ length: maxSecond + 1 }, (_, sec) =>
