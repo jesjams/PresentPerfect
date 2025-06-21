@@ -1,6 +1,9 @@
 import whisper
 import librosa
 import numpy as np
+import torch
+
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 def extract_gender_features(audio_path):
     """Extract audio features for gender detection"""
@@ -69,7 +72,7 @@ def simple_gender_classifier(audio_path):
 
 def whisper_transcriber(path):
     try:
-        whisper_model = whisper.load_model("turbo", device="cpu")        
+        whisper_model = whisper.load_model("turbo", device=DEVICE)        
         result = whisper_model.transcribe(path, fp16=False, verbose=False)
         segments = result.get("segments", [])
         full_text = result.get("text", "").strip()
