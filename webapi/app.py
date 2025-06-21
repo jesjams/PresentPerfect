@@ -320,7 +320,7 @@ Respond with ONLY a JSON object matching the PresentationFeedback model.
 
     # Request and parse
     completion = client.beta.chat.completions.parse(
-        model="gpt-4.1-nano-2025-04-14",                 
+        model=os.getenv("OPENAI_MODEL"),                 
         messages=[
             {"role": "system", "content": system},
             {"role": "user",   "content": user}
