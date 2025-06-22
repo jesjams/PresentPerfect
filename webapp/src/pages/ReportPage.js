@@ -12,7 +12,7 @@ import { PieChart, Pie, Cell, Legend } from 'recharts';
 import { ReactComponent as Mansvg } from '../assets/mansvgrepo.svg';
 import html2canvas from 'html2canvas';
 import { useAuth } from '../context/AuthContext';
-import { FaDownload } from 'react-icons/fa';
+import { FaDownload, FaMicrophone } from 'react-icons/fa';
 import { useRef, useState } from 'react';
 
 import { Tooltip as RTTooltip } from 'react-tooltip';
@@ -21,7 +21,6 @@ import 'react-tooltip/dist/react-tooltip.css';
 export default function ReportPage() {
   const location = useLocation();
   const navigate = useNavigate();
-
 
   const reportData = location.state?.reportData;
   const { user } = useAuth();
@@ -34,8 +33,8 @@ export default function ReportPage() {
     day: 'numeric'
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const reportRef = useRef(null);
-
 
   const handlePrint = async () => {
     setIsExporting(true); // Begin export mode
@@ -57,6 +56,119 @@ export default function ReportPage() {
     link.click();
 
     setIsExporting(false);
+  };
+
+  const handleAudioAnalysis = async () => {
+    setIsProcessingAudio(true);
+    
+    // Declare audioReportWindow outside try block to fix scope issue
+    let audioReportWindow = null;
+    
+    try {
+      // Generate a unique report ID for this session
+      const audioReportId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Open audio report in new tab immediately
+      audioReportWindow = window.open('/audio-report', '_blank');
+      
+      if (!audioReportWindow) {
+        alert('Please allow popups for this site to open the audio analysis in a new tab.');
+        setIsProcessingAudio(false);
+        return;
+      }
+
+      // We'll use the video file that was processed for the current report
+      // In a real implementation, you'd store the video file path in the backend
+      // For now, we'll use a placeholder approach where the backend knows which video to use
+      const payload = {
+        reportId: audioReportId,
+        videoReportId: reportData.reportId || Date.now(),
+        // Note: In production, you'd have the backend track the video file path
+        // associated with each report ID rather than passing paths from frontend
+      };
+
+      // Call the new API endpoint to extract audio and analyze
+      const response = await fetch('http://localhost:4000/api/extract-audio-and-analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        console.log('[VideoReport] Audio extraction started successfully');
+        
+        // Set up real-time communication with the audio report window
+        const messageHandler = (event) => {
+          if (event.origin !== window.location.origin) return;
+          
+          // Listen for progress updates and pass them to the audio report window
+          if (event.data.type?.startsWith('video-audio-analysis')) {
+            audioReportWindow.postMessage(event.data, window.location.origin);
+          }
+        };
+        
+        window.addEventListener('message', messageHandler);
+        
+        // Setup socket listeners for this specific analysis
+        import('socket.io-client').then(({ io }) => {
+          const socket = io('http://localhost:4000');
+          
+          socket.on('video-audio-analysis-update', (data) => {
+            if (data.reportId === audioReportId) {
+              audioReportWindow.postMessage({
+                type: 'AUDIO_ANALYSIS_PROGRESS',
+                data: data
+              }, window.location.origin);
+            }
+          });
+          
+          socket.on('video-audio-analysis-complete', (data) => {
+            if (data.reportId === audioReportId) {
+              audioReportWindow.postMessage({
+                type: 'AUDIO_REPORT_DATA',
+                data: data.data
+              }, window.location.origin);
+              socket.disconnect();
+              window.removeEventListener('message', messageHandler);
+            }
+          });
+          
+          socket.on('video-audio-analysis-error', (data) => {
+            if (data.reportId === audioReportId) {
+              audioReportWindow.postMessage({
+                type: 'AUDIO_ANALYSIS_ERROR',
+                error: data.error
+              }, window.location.origin);
+              socket.disconnect();
+              window.removeEventListener('message', messageHandler);
+            }
+          });
+        });
+        
+      } else {
+        console.error('Audio analysis failed:', result.error);
+        alert('Audio analysis failed: ' + result.error);
+        if (audioReportWindow) {
+          audioReportWindow.close();
+        }
+      }
+    } catch (error) {
+      console.error('Error during audio analysis:', error);
+      alert('Failed to start audio analysis. Please try again.');
+      if (audioReportWindow && !audioReportWindow.closed) {
+        audioReportWindow.close();
+      }
+    } finally {
+      setIsProcessingAudio(false);
+    }
   };
 
   if (!reportData) {
@@ -309,6 +421,48 @@ export default function ReportPage() {
       fontWeight: '700',
       marginBottom: '10px'
     },
+    // NEW: Audio Analysis Button Styles
+    audioAnalysisSection: {
+      backgroundColor: 'white',
+      color: '#5D2E8C',
+      borderRadius: '15px',
+      padding: '20px',
+      textAlign: 'center',
+      marginTop: '20px',
+      border: '2px dashed #5D2E8C'
+    },
+    audioAnalysisTitle: {
+      fontSize: '20px',
+      fontWeight: '700',
+      marginBottom: '10px',
+      color: '#5D2E8C'
+    },
+    audioAnalysisDescription: {
+      fontSize: '16px',
+      marginBottom: '20px',
+      color: '#666',
+      lineHeight: '1.4'
+    },
+    audioAnalysisButton: {
+      backgroundColor: '#5D2E8C',
+      color: 'white',
+      border: 'none',
+      padding: '15px 30px',
+      borderRadius: '25px',
+      fontSize: '16px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '10px',
+      transition: 'all 0.3s ease',
+      boxShadow: '0 4px 12px rgba(93, 46, 140, 0.3)'
+    },
+    audioAnalysisButtonDisabled: {
+      backgroundColor: '#ccc',
+      cursor: 'not-allowed',
+      boxShadow: 'none'
+    },
     breakdownSection: {
       backgroundColor: 'white',
       color: '#5D2E8C',
@@ -465,6 +619,37 @@ export default function ReportPage() {
             <div style={styles.summarySection}>
               <div style={styles.summaryTitle}>Overview</div>
               <div>{overallSummary}</div>
+            </div>
+
+            {/* NEW: AUDIO ANALYSIS SECTION */}
+            <div style={styles.audioAnalysisSection}>
+              <div style={styles.audioAnalysisTitle}>🎵 Advanced Audio Analysis</div>
+              <div style={styles.audioAnalysisDescription}>
+                Get detailed vocal dynamics analysis, pitch variation insights, and enhanced audio coaching based on your video's speech patterns.
+              </div>
+              <button
+                style={{
+                  ...styles.audioAnalysisButton,
+                  ...(isProcessingAudio ? styles.audioAnalysisButtonDisabled : {})
+                }}
+                onClick={handleAudioAnalysis}
+                disabled={isProcessingAudio}
+                onMouseOver={(e) => {
+                  if (!isProcessingAudio) {
+                    e.currentTarget.style.backgroundColor = '#7248A0';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isProcessingAudio) {
+                    e.currentTarget.style.backgroundColor = '#5D2E8C';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <FaMicrophone />
+                {isProcessingAudio ? 'Analysing Audio...' : 'Generate Audio Analysis'}
+              </button>
             </div>
 
             <div style={styles.divider}></div>

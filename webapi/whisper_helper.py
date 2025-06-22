@@ -48,16 +48,28 @@ def extract_gender_features(audio_path):
         return None
 
 def simple_gender_classifier(audio_path):
-    """Simple rule-based gender detection using pitch"""
+    """Simple rule-based gender detection using improved pitch detection"""
     try:
         y, sr = librosa.load(audio_path, sr=22050)
         
-        # Extract fundamental frequency
-        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
-        pitches = pitches[pitches > 0]
+        # Use YIN algorithm for better fundamental frequency detection
+        try:
+            f0 = librosa.yin(y, fmin=50, fmax=400, sr=sr)
+            valid_pitches = f0[(f0 > 50) & (f0 < 400) & ~np.isnan(f0)]
+        except:
+            # Fallback to piptrack with constraints
+            pitches, magnitudes = librosa.piptrack(y=y, sr=sr, fmin=50, fmax=400)
+            pitches = pitches[pitches > 0]
+            # Filter out unrealistic values
+            valid_pitches = pitches[(pitches >= 50) & (pitches <= 400)]
         
-        if len(pitches) > 0:
-            mean_pitch = np.mean(pitches)
+        if len(valid_pitches) > 0:
+            mean_pitch = np.mean(valid_pitches)
+            
+            # Validate pitch is in realistic range
+            if mean_pitch < 50 or mean_pitch > 400:
+                return 'unknown', mean_pitch
+                
             # Simple threshold-based classification
             # Typical male: 85-180 Hz, Female: 165-265 Hz
             if mean_pitch < 165:
