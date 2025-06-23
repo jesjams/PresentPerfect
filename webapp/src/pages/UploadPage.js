@@ -8,7 +8,8 @@ import { ReactComponent as UploadFile } from '../assets/uploadfile.svg';
 import { ReactComponent as DropVideo } from '../assets/videodrop.svg';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-
+const BASE_URL = process.env.REACT_APP_API_HOST;
+const SOCKET_HOST = process.env.REACT_APP_SOCKET_HOST || 'http://localhost:4000';
 export default function UploadPage() {
   const navigate = useNavigate();
 
@@ -32,7 +33,7 @@ export default function UploadPage() {
   const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
-    socketRef.current = io('http://localhost:4000');
+    socketRef.current = io(SOCKET_HOST);
 
     socketRef.current.on('processing-update', data => {
       setProcessingProgress(data.progress);
@@ -116,7 +117,9 @@ export default function UploadPage() {
 
     const file = acceptedFiles[0];
     const isAudio = file.type.startsWith('audio/');
-    const endpoint = isAudio ? 'http://localhost:4000/api/analyze-audio' : 'http://localhost:4000/api/analyze';
+const endpoint = isAudio
+  ? `${BASE_URL}/api/analyze-audio`
+  : `${BASE_URL}/api/analyze`;
     const fieldName = isAudio ? 'audio' : 'video';
     const formData = new FormData();
     formData.append(fieldName, file);

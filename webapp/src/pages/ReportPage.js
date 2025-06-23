@@ -18,6 +18,9 @@ import { useRef, useState } from 'react';
 import { Tooltip as RTTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 
+const BASE_URL = process.env.REACT_APP_API_HOST;
+const SOCKET_HOST = process.env.REACT_APP_SOCKET_HOST || 'http://localhost:4000';
+
 export default function ReportPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -88,7 +91,7 @@ export default function ReportPage() {
       };
 
       // Call the new API endpoint to extract audio and analyze
-      const response = await fetch('http://localhost:4000/api/extract-audio-and-analyze', {
+      const response = await fetch(`${BASE_URL}/api/extract-audio-and-analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +122,7 @@ export default function ReportPage() {
         
         // Setup socket listeners for this specific analysis
         import('socket.io-client').then(({ io }) => {
-          const socket = io('http://localhost:4000');
+          const socket = io(SOCKET_HOST);
           
           socket.on('video-audio-analysis-update', (data) => {
             if (data.reportId === audioReportId) {

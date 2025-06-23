@@ -11,16 +11,27 @@ export const AuthProvider = ({ children }) => {
     if (saved) setUser(JSON.parse(saved));
   }, []);
 
-  const login = (email, password) => {
-    // hard-coded demo credentials
-    if (email === 'demo@presentperfect.ai' && password === '1w?H[M!?0F2M') {
-      const u = { email };
-      setUser(u);
-      localStorage.setItem('pp-user', JSON.stringify(u));
-      return true;
-    }
-    return false;
-  };
+const login = (email, password) => {
+  // hard-coded demo credentials
+  const demoAccounts = [
+    { email: 'demo@presentperfect.ai', password: '1w?H[M!?0F2M' },
+    { email: 'kavi@presentperfect.ai', password: '1212123q' },
+    { email: 'jonathan@presentperfect.ai', password: '1212123q' },
+  ];
+
+  const matchedUser = demoAccounts.find(
+    (acc) => acc.email === email && acc.password === password
+  );
+
+  if (matchedUser) {
+    const u = { email: matchedUser.email };
+    setUser(u);
+    localStorage.setItem('pp-user', JSON.stringify(u));
+    return true;
+  }
+
+  return false;
+};
 
   const logout = () => {
     setUser(null);
