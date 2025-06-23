@@ -268,7 +268,8 @@ const endpoint = isAudio
       zIndex: 2,
       textAlign: 'center',
       justifyItems: 'center',
-      color: 'white'
+      color: 'white',
+      display: 'grid'
     },
     icon: { fill: '#f9f9ff' },
     uploadButton: {
@@ -430,10 +431,10 @@ const endpoint = isAudio
             <div style={styles.icon}>
               <UploadIcon style={{ width: '8rem', height: '8rem', stroke: '#f9f9ff' }} />
             </div>
-            <div>Drag and drop your file to upload</div>
+            <div>Drag and drop your video or audio file to upload</div>
             <button type="button" onClick={open} style={styles.uploadButton}>
               <UploadFile style={{ width: '1.5rem', height: '1.5rem', stroke: '#000' }} />
-              Choose Video
+              Choose Media
             </button>
           </div>
         )}
@@ -480,15 +481,24 @@ const endpoint = isAudio
         <div style={styles.instructions}>
           <h2>Instructions</h2>
           <p>
-            Nervous about speaking in front of a crowd? Don’t worry — we’ve got your
-            back. Simply upload a short video of yourself speaking. Our AI will
-            analyze your posture, gestures, and movement patterns to provide
-            insightful feedback.
+            Nervous about speaking in front of a crowd? Don't worry — we've got your
+            back. Simply upload a short video or audio recording of yourself speaking. 
+            Our AI will analyze your delivery to provide insightful feedback.
+            <br />
+            <br />
+            <strong>For Videos (.mp4):</strong>
             <br />
             &nbsp; &nbsp; &nbsp;Make sure your entire upper body is clearly visible
             <br />
-            &nbsp; &nbsp; &nbsp;Record in a well-lit environment with minimal
-            background clutter
+            &nbsp; &nbsp; &nbsp;Record in a well-lit environment with minimal background clutter
+            <br />
+            <br />
+            <strong>For Audio (.mp3, .wav):</strong>
+            <br />
+            &nbsp; &nbsp; &nbsp;Ensure clear recording quality for best speech analysis
+            <br />
+            &nbsp; &nbsp; &nbsp;Speak naturally as you would in a real presentation
+            <br />
             <br />
             Once submitted, your results will appear with suggestions to help
             improve your delivery.

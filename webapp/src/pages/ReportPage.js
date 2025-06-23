@@ -380,7 +380,7 @@ export default function ReportPage() {
     cardValue: {
       fontSize: '50px',
       fontWeight: '1000',
-      fontStyle: 'italic'
+      fontStyle: 'italic' 
     },
     userInfoCard: {
       display: 'flex',

@@ -8,6 +8,8 @@ import {
   Radar,
   Tooltip
 } from 'recharts';
+import html2canvas from 'html2canvas';
+import { FaDownload } from 'react-icons/fa';
 
 export default function AudioReportPage() {
   const location = useLocation();
@@ -51,10 +53,16 @@ export default function AudioReportPage() {
       marginBottom: '3rem'
     },
     title: {
-      fontSize: '2.8rem',
-      color: '#5D2E8C',
-      marginBottom: '0.5rem',
-      fontWeight: '700'
+      textAlign: 'center',
+      fontSize: '36px',
+      marginBottom: '20px',
+      color: 'white',
+      fontWeight: '600',
+      letterSpacing: '1px'
+    },
+    divider: {
+      borderTop: '2px solid white',
+      margin: '20px 0'
     },
     subtitle: {
       fontSize: '1.3rem',
@@ -63,6 +71,7 @@ export default function AudioReportPage() {
     },
     // NEW: Source indicator styles
     sourceIndicator: {
+      display: 'inline-block', 
       backgroundColor: dataSource === 'video' ? '#e8f5e8' : '#f0f8ff',
       border: `2px solid ${dataSource === 'video' ? '#28a745' : '#007bff'}`,
       borderRadius: '1rem',
@@ -84,6 +93,28 @@ export default function AudioReportPage() {
       marginTop: '0.5rem',
       margin: '0.5rem 0 0 0'
     },
+    
+    reportContainer: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '20px',
+      justifyContent: 'center'
+    },
+    leftPanel: {
+      backgroundColor: '#fff',
+      borderRadius: '15px',
+      padding: '40px',
+      minWidth: '300px',
+      justifyContent: 'center',
+      justifyItems: 'center',
+      flex: '1 1 400px'
+    },
+    rightPanel: {
+      flexDirection: 'column',
+      gap: '20px',
+      flex: '1 1 300px',
+      display: 'grid',
+    },
     metaInfo: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -94,22 +125,20 @@ export default function AudioReportPage() {
     },
     metaItem: {
       backgroundColor: 'white',
-      padding: '1.5rem',
-      borderRadius: '1.2rem',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-      textAlign: 'center',
-      border: '1px solid #e0e0e0'
+      color: '#5D2E8C',
+      borderRadius: '15px',
+      padding: '20px',
+      textAlign: 'center'
     },
     metaLabel: {
-      fontSize: '0.9rem',
-      color: '#666',
-      marginBottom: '0.5rem',
+      fontSize: '12px',
+      textTransform: 'uppercase',
       fontWeight: '500'
     },
     metaValue: {
-      fontSize: '1.4rem',
-      fontWeight: 'bold',
-      color: '#5D2E8C'
+      fontSize: '50px',
+      fontWeight: '1000',
+      fontStyle: 'italic'
     },
     scoreRadarContainer: {
       display: 'flex',
@@ -120,6 +149,9 @@ export default function AudioReportPage() {
       margin: '0 auto 3rem auto'
     },
     radarCard: {
+      display: 'flex',
+      flexDirection: 'column', 
+      alignItems: 'center',
       backgroundColor: 'white',
       borderRadius: '1.5rem',
       padding: '2rem',
@@ -301,7 +333,7 @@ export default function AudioReportPage() {
     },
     presentationMetricsGrid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
       gap: '2rem',
       marginBottom: '3rem'
     },
@@ -578,6 +610,30 @@ export default function AudioReportPage() {
       color: '#5D2E8C',
       fontWeight: 'bold'
     }
+  };
+
+  const [isExporting, setIsExporting] = useState(false);
+  const reportRef = useRef(null);
+  const handlePrint = async () => {
+    setIsExporting(true); // Begin export mode
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const element = reportRef.current;
+    if (!element) return;
+
+    const canvas = await html2canvas(element, {
+      scale: 1,
+      useCORS: true,
+    });
+
+    const image = canvas.toDataURL('image/png');
+
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = 'Performance_Report.png';
+    link.click();
+
+    setIsExporting(false);
   };
 
   // Helper functions for vocal improvement tips
@@ -983,14 +1039,24 @@ export default function AudioReportPage() {
             text-overflow: ellipsis;
             white-space: nowrap;
           }
+
+          @media (max-width: 768px) {
+            .report-container {
+              grid-template-columns: 1fr;    /* one column */
+            }
+            /* make sure both panels take full width */
+            .report-container > div {
+              width: 100% !important;
+            }
+          }
         `}
       </style>
       
       <div style={styles.reportBoxOuter}>
         <div style={styles.reportBoxInner}>
           <div style={styles.header}>
-            <h1 style={styles.title}>Presentation Speech Analysis</h1>
-            <p style={styles.subtitle}>AI-Powered Speech Coaching & Enhancement</p>
+            <h1 style={styles.title}>Here Are Your Results!</h1>
+            <div style={styles.divider}></div>
             
             {/* NEW: Source Indicator */}
             <div style={styles.sourceIndicator}>
@@ -1005,76 +1071,48 @@ export default function AudioReportPage() {
               </p>
             </div>
 
-          {/* Meta Information */}
-          <div style={styles.metaInfo}>
-            <div style={styles.metaItem}>
-              <div style={styles.metaLabel}>Duration</div>
-              <div style={styles.metaValue}>{formatDuration(duration)}</div>
+          <div className="report-container" style={styles.reportContainer}>
+            
+            {/* RIGHT PANEL */}
+            <div className="left-panel" style={styles.leftPanel}>
+              {/* Presentation Scores */}
+                  <div style={{ textAlign: 'center', justifyContent: 'center', marginBottom: '10px', color: '#5D2E8C', fontSize: '20px', fontWeight: '600' }}>
+                    Performance Radar</div>
+                  <div className="radar-chart" style={{ margin: '0 auto', display: 'block' }}>
+                    <RadarChart width={400} height={320} cx={200} cy={160} outerRadius={120} data={radarData}>
+                      <PolarGrid stroke="#5D2E8C" />
+                      <PolarAngleAxis 
+                        dataKey="subject" 
+                        stroke="#5D2E8C" 
+                        tick={{ fontSize: 12, fill: '#5D2E8C' }}
+                        className="radar-labels"
+                      />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                      <Radar name="Score" dataKey="A" stroke="#5D2E8C" fill="#E2779C" fillOpacity={0.5} />
+                      <Tooltip />
+                    </RadarChart>
+                  </div>
             </div>
-            <div style={styles.metaItem}>
-              <div style={styles.metaLabel}>Language</div>
-              <div style={styles.metaValue}>{safeLanguage}</div>
-            </div>
-            <div style={styles.metaItem}>
-              <div style={styles.metaLabel}>Word Count</div>
-              <div style={styles.metaValue}>{wordCount}</div>
-            </div>
-            <div style={styles.metaItem}>
-              <div style={styles.metaLabel}>Speaking Rate</div>
-              <div style={styles.metaValue}>{speakingRate} WPM</div>
-            </div>
-          </div>
-
-          {/* Presentation Scores */}
-          <div style={styles.scoreRadarContainer}>
-            <div style={styles.radarCard}>
-              <div style={styles.radarTitle}>Performance Radar</div>
-              <div className="radar-chart">
-                <RadarChart width={400} height={320} cx={200} cy={160} outerRadius={100} data={radarData}>
-                  <PolarGrid stroke="#5D2E8C" />
-                  <PolarAngleAxis 
-                    dataKey="subject" 
-                    stroke="#5D2E8C" 
-                    tick={{ fontSize: 12, fill: '#5D2E8C' }}
-                    className="radar-labels"
-                  />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Score" dataKey="A" stroke="#5D2E8C" fill="#E2779C" fillOpacity={0.5} />
-                  <Tooltip />
-                </RadarChart>
-              </div>
-            </div>
-            <div className="score-section" style={styles.scoreSection}>
-              <div className="score-card" style={styles.scoreCard}>
-                <div style={{...styles.scoreNumber, color: getScoreColor(clarityScore)}}>
-                  {clarityScore}
+            
+            {/* LEFT PANEL */}
+            <div className="right-panel" style={styles.rightPanel}>
+              {/* Meta Information */}
+                <div style={styles.metaItem}>
+                  <div style={styles.metaLabel}>Score</div>
+                  <div style={{...styles.metaValue, color: getScoreColor(overallScore)}}>{overallScore}</div>
                 </div>
-                <div className="score-label" style={styles.scoreLabel}>Clarity Score</div>
-              </div>
-              <div className="score-card" style={styles.scoreCard}>
-                <div style={{...styles.scoreNumber, color: getScoreColor(paceScore)}}>
-                  {paceScore}
+                <div style={styles.metaItem}>
+                  <div style={styles.metaLabel}>Duration</div>
+                  <div style={styles.metaValue}>{formatDuration(duration)}</div>
                 </div>
-                <div className="score-label" style={styles.scoreLabel}>Pace Score</div>
-              </div>
-              <div className="score-card" style={styles.scoreCard}>
-                <div style={{...styles.scoreNumber, color: getScoreColor(confidenceScore)}}>
-                  {confidenceScore}
+                <div style={styles.metaItem}>
+                  <div style={styles.metaLabel}>Language</div>
+                  <div style={styles.metaValue}>{safeLanguage}</div>
                 </div>
-                <div className="score-label" style={styles.scoreLabel}>Confidence Score</div>
-              </div>
-              <div className="score-card" style={styles.scoreCard}>
-                <div style={{...styles.scoreNumber, color: getScoreColor(engagementScore)}}>
-                  {engagementScore}
+                <div style={styles.metaItem}>
+                  <div style={styles.metaLabel}>Speaking Rate</div>
+                  <div style={styles.metaValue}>{speakingRate} WPM</div>
                 </div>
-                <div className="score-label" style={styles.scoreLabel}>Engagement Score</div>
-              </div>
-              <div className="score-card" style={styles.scoreCard}>
-                <div style={{...styles.scoreNumber, color: getScoreColor(overallScore)}}>
-                  {overallScore}
-                </div>
-                <div className="score-label" style={styles.scoreLabel}>Overall Score</div>
-              </div>
             </div>
           </div>
         </div>
@@ -1557,7 +1595,44 @@ export default function AudioReportPage() {
       </div>
         </div>
       </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+              <button className="download-button" onClick={handlePrint}>
+                <FaDownload />
+                Download Report
+              </button>
+            </div>
+
+            <style>{`
+
+.download-button {
+  background-color: #5D2E8C;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+.download-button:hover {
+  background-color: #5a3fa0; /* slightly darker purple on hover */
+}
+
+.download-button:active {
+  transform: scale(0.95); /* slightly shrink on click */
+}
+
+
+
+`}</style>
     </div>
+    
   );
 }
 
