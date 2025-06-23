@@ -33,7 +33,7 @@ from enhanced_transcript import enhance_transcript_for_presentation
 from vocal_dynamics_analyzer import analyze_vocal_dynamics
 
 video_file_tracker = {}
-
+user = ""
 
 torch.backends.cudnn.benchmark = True
 # DEVICE = "cuda:0"
@@ -267,10 +267,11 @@ def get_feedback_payload(
     segments:    List[Dict[str, Any]]
 ) -> PresentationFeedback:
 
-
+    global user
     # Build system + user messages
     system = (
-    "You are an experienced presentation coach. Your reply **must be a single JSON object** that follows the exact structure of the PresentationFeedback schema shown below—no extra keys, text, or formatting.\n\n"
+    f"You are a supportive, expert presentation coach helping {user} improve their delivery style. Your response MUST be a **single JSON object** following the exact structure of the PresentationFeedback schema below—no extra commentary, formatting, or explanation.\n\n"
+    "Your role is to guide the user like a personal tutor: give encouragement where deserved and offer constructive, practical suggestions they can act on.\n\n"
     "PresentationFeedback schema:\n"
     "{\n"
     "  'speechImprovements\": string,\n"
@@ -289,37 +290,39 @@ def get_feedback_payload(
     "  'overallSummary':    string\n"
     "}\n\n"
     "INSTRUCTIONS\n"
-    "1. Read the transcript to understand the presentation’s content and intent.\n"
-    "2. Use the analytics timeline to assess the presenter’s delivery.\n"
-    "3. Fill every field of the PresentationFeedback JSON:\n"
-    "   • *speechScore* – quality of wording, structure, clarity (1-100). A good presentation script should be clear, structured, and support the presentation intent.\n"
-    "   • *emotionScore* – how well facial emotion matches the script (1-100). A good presenter should use their emotion to support their presentation intent.\n"
-    "   • *gazeScore* – audience engagement through eye contact (1-100). A good presenter engages their audience by not focusing their gaze on only one spot during their presentation.\n"
-    "   • *movementScore* – purposeful use of stage space (1-100). A good presenter uses their stage effectively; they should not move too little or too much.\n"
-    "   • *shoulderScore* – confident posture (1-100). A good presenter should be confident and appear reliable.\n"
-    "   • *handsScore* – effective hand gestures (1-100). A good presenter uses their gestures effectively to deliver their presentation.\n"
-    "   • Provide detailed text recommendations for each area.\n"
-    "4. Calculate *overallScore* as the average of speechScore, emotionScore, gazeScore, movementScore, shoulderScore, and handsScore.\n"
-    "5. Summarise the key action items in *overallSummary*.\n\n"
-    "**Return only the JSON object that conforms to the schema.**"
-)
-    user = f"""
-Below are (1) second‑by‑second analytics extracted from the video and (2) the full speech transcript.
- 
------------------------------------------------
-ANALYTICS  (one entry per second)
-  • Emotion compiled by transcript speaking time : {dom_emotion}      // dominant facial emotion
-  • Gaze_sec    : {dom_gaze}         // gaze region: centre, up, down, left, right, upleft, upright, downleft, downright
-  • Move_avg_sec: {move_avg}         // X‑axis position 0‑10 (0 = far left, 10 = far right)
-  • Shoulder_sec: {dom_shoulder}     // posture flag: slouch / upright
-  • Hands_sec   : {dom_hands}        // gesture flag: gesturing / static
------------------------------------------------
- 
-TRANSCRIPT
-{segments}
+    "1. Read the transcript to understand the presentation’s intent and clarity.\n"
+    "2. Review the analytics timeline to assess how delivery supports that intent.\n"
+    "3. Fill in all fields of the PresentationFeedback in with the text section of each score offering improvements for that sppecific part JSON:\n"
+    "   • *speechScore* – Structure, clarity, and flow. Provide targeted improvement tips.\n"
+    "   • *emotionScore* – Did the speaker’s facial expression match their content? Be specific.\n"
+    "   • *gazeScore* – Evaluate eye contact. \n"
+    "     → If gaze is mostly down or up, consider whether the audience or camera might be positioned low/high and adjust your feedback accordingly (e.g., Ted Talks, seated audiences).\n"
+    "   • *movementScore* – How well did the presenter use the space? Encourage confident, purposeful movement.\n"
+    "   • *shoulderScore* – Reflects posture confidence. eg. Explain if tilted shoulders may reduce presence.\n"
+    "   • *handsScore* – Did gestures support the message? Comment on gesture use and pacing.\n"
+    "4. Make *overallScore* the average of the six sub-scores like\n"
+    "5. In *overallSummary*, kindly summarise 2–3 key things the speaker should focus on next time.  write it like a story, keep it personal to the user and the content and speak to the user like an actual coach.\n\n"
+    "Be encouraging, helpful, and specific—like a coach who wants them to succeed.\n\n"
+    "Return ONLY the JSON object that conforms to the schema above."
+    )
 
-Respond with ONLY a JSON object matching the PresentationFeedback model.
-"""
+    user = f"""
+    Below are (1) second‑by‑second analytics extracted from the video and (2) the full speech transcript.
+    
+    -----------------------------------------------
+    ANALYTICS  (one entry per second)
+    • Emotion compiled by transcript speaking time : {dom_emotion}      // dominant facial emotion
+    • Gaze_sec    : {dom_gaze}         // gaze region: centre, up, down, left, right, upleft, upright, downleft, downright
+    • Move_avg_sec: {move_avg}         // X‑axis position 0‑10 (0 = far left, 10 = far right)
+    • Shoulder_sec: {dom_shoulder}     // posture flag: straight / tilted
+    • Hands_sec   : {dom_hands}        // gesture flag: gesturing / hands at side
+    -----------------------------------------------
+    
+    TRANSCRIPT
+    {segments}
+
+    Respond with ONLY a JSON object matching the PresentationFeedback schema.
+    """
 
     # Request and parse
     completion = client.beta.chat.completions.parse(
@@ -481,8 +484,10 @@ def gaze_batch(batch_rgbs, batch_secs, CAM_MAT, DIST, W, H):
 #Flask route 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
+    global user
     reset_state()
     video = request.files['video']
+    user = request.form['userName']
     print(f"Request:{request}")
     print(f"[INFO] Received video: {video.filename} ({video.content_length / 1024:.2f} KB)")
     if not video:
@@ -962,7 +967,7 @@ def process_comprehensive_audio(temp_path):
             'stage': 'parallel_analysis'
         })
         
-        executor = ThreadPoolExecutor(max_workers=3)  # Increased to 3 workers
+        executor = ThreadPoolExecutor(max_workers=8)  # Increased to 3 workers
         
         # Create wrapper functions with better error handling
         def safe_get_metrics(path):

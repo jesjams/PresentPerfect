@@ -123,6 +123,7 @@ const endpoint = isAudio
     const fieldName = isAudio ? 'audio' : 'video';
     const formData = new FormData();
     formData.append(fieldName, file);
+    formData.append("userName",user?.email?.split('@')[0]);
 
     try {
       setUploading(true);

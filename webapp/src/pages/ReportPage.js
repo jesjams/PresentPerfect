@@ -403,6 +403,7 @@ export default function ReportPage() {
       fontWeight: '500',
       lineHeight: '1.5',
       marginTop: '20px',
+            marginBottom: '20px',
       wordWrap: 'break-word',
       overflowWrap: 'break-word'
     },
@@ -583,6 +584,10 @@ export default function ReportPage() {
           <div style={styles.reportBoxInner}>
             <h1 style={styles.title}>Here Are Your Results!</h1>
             <div style={styles.divider}></div>
+                        {/* OVERVIEW SECTION */}
+            <div style={styles.summarySection}>
+              <div>{overallSummary}</div>
+            </div>
 
             <div className="report-container" style={styles.reportContainer}>
               {/* LEFT PANEL */}
@@ -616,43 +621,6 @@ export default function ReportPage() {
                   <div style={styles.userInfoValue}>{date}</div>
                 </div>
               </div>
-            </div>
-
-            {/* OVERVIEW SECTION */}
-            <div style={styles.summarySection}>
-              <div style={styles.summaryTitle}>Overview</div>
-              <div>{overallSummary}</div>
-            </div>
-
-            {/* NEW: AUDIO ANALYSIS SECTION */}
-            <div style={styles.audioAnalysisSection}>
-              <div style={styles.audioAnalysisTitle}>🎵 Advanced Audio Analysis</div>
-              <div style={styles.audioAnalysisDescription}>
-                Get detailed vocal dynamics analysis, pitch variation insights, and enhanced audio coaching based on your video's speech patterns.
-              </div>
-              <button
-                style={{
-                  ...styles.audioAnalysisButton,
-                  ...(isProcessingAudio ? styles.audioAnalysisButtonDisabled : {})
-                }}
-                onClick={handleAudioAnalysis}
-                disabled={isProcessingAudio}
-                onMouseOver={(e) => {
-                  if (!isProcessingAudio) {
-                    e.currentTarget.style.backgroundColor = '#7248A0';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!isProcessingAudio) {
-                    e.currentTarget.style.backgroundColor = '#5D2E8C';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }
-                }}
-              >
-                <FaMicrophone />
-                {isProcessingAudio ? 'Analysing Audio...' : 'Generate Audio Analysis'}
-              </button>
             </div>
 
             <div style={styles.divider}></div>
@@ -743,6 +711,36 @@ export default function ReportPage() {
               <div style={styles.suggestionText}>
                 {reportData.speechImprovements}
               </div>
+            </div>
+                        {/* NEW: AUDIO ANALYSIS SECTION */}
+            <div style={styles.audioAnalysisSection}>
+              <div style={styles.audioAnalysisTitle}>🎵 Advanced Audio Analysis</div>
+              <div style={styles.audioAnalysisDescription}>
+                Get detailed vocal dynamics analysis, pitch variation insights, and enhanced audio coaching based on your video's speech patterns.
+              </div>
+              <button
+                style={{
+                  ...styles.audioAnalysisButton,
+                  ...(isProcessingAudio ? styles.audioAnalysisButtonDisabled : {})
+                }}
+                onClick={handleAudioAnalysis}
+                disabled={isProcessingAudio}
+                onMouseOver={(e) => {
+                  if (!isProcessingAudio) {
+                    e.currentTarget.style.backgroundColor = '#7248A0';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isProcessingAudio) {
+                    e.currentTarget.style.backgroundColor = '#5D2E8C';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <FaMicrophone />
+                {isProcessingAudio ? 'Analysing Audio...' : 'Generate Audio Analysis'}
+              </button>
             </div>
             <div style={styles.divider}></div>
             {/* SCORE BREAKDOWN SECTION */}

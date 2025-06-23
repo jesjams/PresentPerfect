@@ -609,7 +609,14 @@ export default function AudioReportPage() {
       fontSize: '1.1rem',
       color: '#5D2E8C',
       fontWeight: 'bold'
-    }
+    },
+      progressBar: {
+    height: '100%',
+    backgroundSize: '40px 40px',
+    backgroundPosition: '0 0',
+    animation: 'candy 1s linear infinite',
+    transition: 'width 1s ease-out',
+  },
   };
 
   const [isExporting, setIsExporting] = useState(false);
@@ -793,13 +800,7 @@ export default function AudioReportPage() {
                   overflow: 'hidden',
                   marginBottom: '1rem'
                 }}>
-                  <div style={{
-                    height: '100%',
-                    borderRadius: '0.6rem',
-                    background: 'linear-gradient(90deg, #5D2E8C, #E2779C)',
-                    width: `${loadingProgress}%`,
-                    transition: 'width 0.5s ease'
-                  }} />
+<div style={{ ...styles.progressBar, width: `${loadingProgress}%`,  backgroundImage:'repeating-linear-gradient(135deg, #B288C0 0 20px, #ffffff 10px 30px)' }} />
                 </div>
                 
                 <div style={{
