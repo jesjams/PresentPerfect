@@ -24,7 +24,7 @@ export default function AudioReportPage() {
   
   const enhancedAudioRef = useRef(null);
   const [audioError, setAudioError] = useState('');
-
+  const BASE_URL = process.env.REACT_APP_API_HOST;
   // Define styles at the top to avoid "used before defined" warnings
   const styles = {
     container: {
@@ -911,7 +911,7 @@ export default function AudioReportPage() {
   const handleDownload = () => {
     if (enhancedAudioUrl) {
       const link = document.createElement('a');
-      link.href = `http://localhost:4000${enhancedAudioUrl}`;
+      link.href = `${BASE_URL}/${enhancedAudioUrl}`;
       link.download = `enhanced_speech_${Date.now()}.mp3`;
       link.click();
     }
@@ -1465,7 +1465,7 @@ export default function AudioReportPage() {
                 onEnded={() => setIsPlayingEnhanced(false)}
                 onError={() => setAudioError('Audio file could not be loaded. Please try again later.')}
               >
-                <source src={`http://localhost:4000${enhancedAudioUrl}`} type="audio/mpeg" />
+                <source src={`${BASE_URL}/${enhancedAudioUrl}`} type="audio/mpeg" />
                 Your browser does not support the audio element.
               </audio>
             </div>
