@@ -24,10 +24,22 @@ SETUP INSTRUCTIONS:
 2. L2: Run main app's React UI
 3. L3: Run `npm start` (this recording app)
 4. Phones: Browse to http://L3-IP:3000
+
+⚙️ CONFIGURATION:
+Create config.json in project root:
+{
+  "mode": "local",
+  "local": {
+    "uploadUrl": "http://localhost:3001/upload"
+  },
+  "distributed": {
+    "uploadUrl": "http://192.168.1.100:3001/upload"
+  }
+}
 */
 
 
-const UPLOAD_URL = 'https://69c7-202-65-71-17.ngrok-free.app/upload';
+const UPLOAD_URL = 'https://9fea-202-65-71-17.ngrok-free.app/upload';
 
 const RecordingApp = () => {
   // State management
@@ -51,9 +63,7 @@ const RecordingApp = () => {
 
   // Get current URL for QR code - use local IP, not derived from UPLOAD_URL
   const getCurrentUrl = () => {
-    // For QR code, use local HTTPS IP address (not ngrok)
-    // Change this to your actual laptop IP address
-    return 'https://192.168.68.121:3000'; // 👈 UPDATE THIS TO YOUR LAPTOP'S IP
+    return 'https://192.168.68.121:3000'; 
   };
 
   // Recording topics with bullet points
@@ -417,10 +427,8 @@ const RecordingApp = () => {
       // Show video preview if in video mode
       if (recordingMode === 'video' && videoPreviewRef.current) {
         videoPreviewRef.current.srcObject = stream;
-        // Handle mobile video preview issues
         videoPreviewRef.current.play().catch(error => {
           console.log('Video preview play failed (normal on mobile):', error);
-          // Don't show error to user - recording still works
         });
       }
       
@@ -717,6 +725,7 @@ const RecordingApp = () => {
           {currentStep === 'countdown' && (
             <div style={styles.countdownContainer}>
               <h2 style={{color: '#5D2E8C', marginBottom: '1rem'}}>Get Ready!</h2>
+              
               <div style={styles.countdownNumber}>{countdown}</div>
               <p style={{fontSize: '1.2rem', color: '#666'}}>
                 Recording will start automatically...
