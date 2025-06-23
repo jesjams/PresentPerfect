@@ -271,6 +271,7 @@ export default function AudioReportPage() {
       border: '1px solid #e0e0e0'
     },
     cardTitle: {
+      textAlign: 'center',
       fontSize: '1.5rem',
       fontWeight: 'bold',
       color: '#5D2E8C',
