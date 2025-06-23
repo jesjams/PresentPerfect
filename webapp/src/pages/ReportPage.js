@@ -324,7 +324,7 @@ export default function ReportPage() {
       borderRadius: '20px',
       padding: '10px',
       maxWidth: '1200px',
-      minWidth: '600px',
+      minWidth: '200px',
       margin: '0 auto'
     },
     reportBoxInner: {
@@ -354,7 +354,7 @@ export default function ReportPage() {
       backgroundColor: '#fff',
       borderRadius: '15px',
       padding: '40px',
-      minWidth: '300px',
+      minWidth: '50px',
       justifyContent: 'center',
       justifyItems: 'center',
       flex: '1 1 400px'
@@ -754,80 +754,82 @@ export default function ReportPage() {
                 <div style={styles.placeholderBox}>
                   <div style={styles.graphTitle}>Face Emotion Analysis</div>
                   {/* Face Emotion Analysis Section */}
-                  <section style={{ margin: '5px 0' }}>
-                    <div
-                      style={{
-                        ...styles.graphBar,
-                        display: 'flex',
-                        overflow: 'hidden',
-                        borderRadius: '8px'
-                      }}
-                    >
-                      {(() => {
-                        let accumulatedWidth = 0;
-                        return segments.map((seg, i) => {
-                          let widthPct;
-                          if (i < segments.length - 1) {
-                            widthPct = ((seg.end - seg.start) / totalDur) * 100;
-                            accumulatedWidth += widthPct;
-                          } else {
-                            widthPct = 100 - accumulatedWidth;
-                          }
-                          const emo = emoSeg[i] || 'None';
-                          const timeStart = `${seg.start.toFixed(2)}s`;
-                          const timeEnd = `${seg.end.toFixed(2)}s`;
-                          const tipId = `tip-${i}`;
+<section style={{ margin: '5px 0' }}>
+  <div
+    className="scroll-chart"
+    style={{
+      width: '100%',
+      overflowX: 'scroll',
+      overflowY: 'hidden',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        minWidth: '600px',
+        height: '60px',
+        borderRadius: '8px',
+        overflow: 'hidden',
+      }}
+    >
+      {(() => {
+        let accumulatedWidth = 0;
+        return segments.map((seg, i) => {
+          let widthPct;
+          if (i < segments.length - 1) {
+            widthPct = ((seg.end - seg.start) / totalDur) * 100;
+            accumulatedWidth += widthPct;
+          } else {
+            widthPct = 100 - accumulatedWidth;
+          }
+          const emo = emoSeg[i] || 'None';
+          const timeStart = `${seg.start.toFixed(2)}s`;
+          const timeEnd = `${seg.end.toFixed(2)}s`;
+          const tipId = `tip-${i}`;
 
-                          return (
-                            <div
-                              key={i}
-                              data-tooltip-id={tipId}
-                              data-tooltip-content={`${emo}: ${timeStart} – ${timeEnd}`}
-                              style={{
-                                width: `${widthPct}%`,
-                                height: '100%',
-                                backgroundColor: emotionColors[emo] || '#000',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '4px',
-                                boxSizing: 'border-box',
-                                borderRight:
-                                  i < segments.length - 1 ? '1px solid rgba(255,255,255,0.5)' : 'none',
-                                borderTopLeftRadius: i === 0 ? '8px' : '0',
-                                borderBottomLeftRadius: i === 0 ? '8px' : '0',
-                                borderTopRightRadius: i === segments.length - 1 ? '8px' : '0',
-                                borderBottomRightRadius: i === segments.length - 1 ? '8px' : '0'
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '0.8em',
-                                  fontWeight: '600',
-                                  lineHeight: 1.2,
-                                  textAlign: 'center',
-                                  color: '#fff',
-                                  marginBottom: '2px'
-                                }}
-                              >
-                                {emo}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '0.6em',
-                                  fontWeight: '400',
-                                  color: '#ddd'
-                                }}
-                              >
-                              </span>
-                              <RTTooltip id={tipId} place="top" />
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                  </section>
+          return (
+            <div
+              key={i}
+              data-tooltip-id={tipId}
+              data-tooltip-content={`${emo}: ${timeStart} – ${timeEnd}`}
+              style={{
+                width: `${widthPct}%`,
+                height: '100%',
+                backgroundColor: emotionColors[emo] || '#000',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                boxSizing: 'border-box',
+                borderRight:
+                  i < segments.length - 1 ? '1px solid rgba(255,255,255,0.5)' : 'none',
+                borderTopLeftRadius: i === 0 ? '8px' : '0',
+                borderBottomLeftRadius: i === 0 ? '8px' : '0',
+                borderTopRightRadius: i === segments.length - 1 ? '8px' : '0',
+                borderBottomRightRadius: i === segments.length - 1 ? '8px' : '0'
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.8em',
+                  fontWeight: '600',
+                  lineHeight: 1.2,
+                  textAlign: 'center',
+                  color: '#fff',
+                  marginBottom: '2px'
+                }}
+              >
+                {emo}
+              </span>
+              <RTTooltip id={tipId} place="top" />
+            </div>
+          );
+        });
+      })()}
+    </div>
+  </div>
+</section>
 
                   {/* Video Start / End labels */}
                   <div style={styles.barLabels}>
@@ -849,47 +851,59 @@ export default function ReportPage() {
                 </div>
 
                 {/* Graph 2 */}
-                <div style={styles.placeholderBox}>
-                  <div style={styles.graphTitle}>Movement Analysis</div>
-                  <div style={{ width: '100%', height: 300 }}>
-                    <ResponsiveContainer>
-                      <LineChart data={movementData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="second"
-                          tickFormatter={(val, index) => {
-                            if (index === 2) return 'Video Start';
-                            if (index === movementData.length - 6) return 'Video End';
-                            return '';
-                          }}
-                        />
-                        <YAxis
-                          domain={[0, 10]}
-                          ticks={[1, 3, 5, 7, 9]}
-                          tickFormatter={(val) => {
-                            if (val === 1) return 'Left';
-                            if (val === 3) return 'Middle Left';
-                            if (val === 5) return 'Center';
-                            if (val === 7) return 'Middle Right';
-                            if (val === 9) return 'Right';
-                            return '';
-                          }}
-                        />
-                        <Tooltip
-                          labelFormatter={(label) => `Time: ${label}`}
-                          formatter={(value, name, props) =>
-                            [`${value.toFixed(2)} (${props.payload.label})`, 'Position']
-                          }
-                        />
-                        <Line type="monotone" dataKey="position" stroke="#5D2E8C" dot />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={styles.suggestionsTitle}>Suggestions for Improvement</div>
-                  <div style={styles.suggestionText}>{reportData.movementText}</div>
-                </div>
+<div style={styles.placeholderBox}>
+  <div style={styles.graphTitle}>Movement Analysis</div>
 
-                <div style={{ ...styles.breakdownContent, flexDirection: 'row', justifyContent: 'space-between' }}>
+  {/* Horizontally scrollable chart container */}
+  <div
+    className="scroll-chart"
+    style={{
+      width: '100%',
+      overflowX: 'scroll',
+      overflowY: 'hidden',
+    }}
+  >
+    <div style={{ minWidth: '600px', height: 300 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={movementData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="second"
+            tickFormatter={(val, index) => {
+              if (index === 4) return 'Video Start';
+              if (index === movementData.length - 8) return 'Video End';
+              return '';
+            }}
+          />
+          <YAxis
+            domain={[0, 10]}
+            ticks={[1, 3, 5, 7, 9]}
+            tickFormatter={(val) => {
+              if (val === 1) return 'Left';
+              if (val === 3) return 'Middle Left';
+              if (val === 5) return 'Center';
+              if (val === 7) return 'Middle Right';
+              if (val === 9) return 'Right';
+              return '';
+            }}
+          />
+          <Tooltip
+            labelFormatter={(label) => `Time: ${label}`}
+            formatter={(value, name, props) =>
+              [`${value.toFixed(2)} (${props.payload.label})`, 'Position']
+            }
+          />
+          <Line type="monotone" dataKey="position" stroke="#5D2E8C" dot />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+
+  <div style={styles.suggestionsTitle}>Suggestions for Improvement</div>
+  <div style={styles.suggestionText}>{reportData.movementText}</div>
+</div>
+
+                <div className="breakdown-chart-pair" style={{ ...styles.breakdownContent, flexDirection: 'row', justifyContent: 'space-between' }}>
                   {/* Shoulder Posture Chart */}
                   <div style={{ ...styles.placeholderBox, flex: 1 }}>
                     <div style={styles.graphTitle}>Shoulder Posture Analysis</div>
@@ -944,8 +958,8 @@ export default function ReportPage() {
                   <div style={styles.graphTitle}>Gaze Analysis</div>
                   <div style={{
                     position: 'relative',
-                    width: '300px',
-                    height: '300px',
+                    width: '220px',
+                    height: '220px',
                     margin: '20px auto'
                   }}>
                     {/* SVG background */}
@@ -1036,6 +1050,21 @@ export default function ReportPage() {
         </button>
       </div>
       <style>{`
+
+.breakdown-chart-pair {
+  flex-direction: row;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .breakdown-chart-pair {
+    flex-direction: column !important;
+  }
+}
+
 .download-button {
   background-color: #5D2E8C;
   color: white;
@@ -1058,6 +1087,26 @@ export default function ReportPage() {
 .download-button:active {
   transform: scale(0.95); /* slightly shrink on click */
 }
+          @media (max-width: 768px) {
+          h1 { font-size: 22px !important; }
+          .recharts-polar-angle-axis-tick-value { font-size: 9px !important; }
+        }
+        /* card grid stacks naturally; no extra rule needed */
+        /* download button full width on mobile */
+        @media (max-width: 480px) {
+          button { width: 100% !important; justify-content: center !important; }
+        }
+
+
+.scroll-chart {
+  scrollbar-color: #5D2E8C transparent; /* Firefox */
+  scrollbar-width: auto;
+    border-radius: 8px;
+  overflow-x: scroll !important;
+}
+
+
+
 `}</style>
     </div>
   );

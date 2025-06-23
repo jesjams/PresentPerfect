@@ -69,9 +69,11 @@ export default function Header() {
     <>
       <header className="header" style={styles.header}>
         <div style={styles.leftGroup}>
-          <div style={styles.logoContainer}>
-            <img src={logo} alt="Present Perfect Logo" style={styles.logoImage} />
-          </div>
+<div style={styles.logoContainer}>
+  <Link to="/upload" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+    <img src={logo} alt="Present Perfect Logo" style={styles.logoImage} />
+  </Link>
+</div>
           <nav style={styles.nav} className="nav">
             {navItems.map(({ path, label }) => (
               <Link
