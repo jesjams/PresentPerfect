@@ -63,17 +63,17 @@ export default function ReportPage() {
 
   const handleAudioAnalysis = async () => {
     setIsProcessingAudio(true);
-    
+
     // Declare audioReportWindow outside try block to fix scope issue
     let audioReportWindow = null;
-    
+
     try {
       // Generate a unique report ID for this session
       const audioReportId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Open audio report in new tab immediately
       audioReportWindow = window.open('/audio-report', '_blank');
-      
+
       if (!audioReportWindow) {
         alert('Please allow popups for this site to open the audio analysis in a new tab.');
         setIsProcessingAudio(false);
@@ -104,26 +104,26 @@ export default function ReportPage() {
       }
 
       const result = await response.json();
-      
+
       if (result.status === 'success') {
         console.log('[VideoReport] Audio extraction started successfully');
-        
+
         // Set up real-time communication with the audio report window
         const messageHandler = (event) => {
           if (event.origin !== window.location.origin) return;
-          
+
           // Listen for progress updates and pass them to the audio report window
           if (event.data.type?.startsWith('video-audio-analysis')) {
             audioReportWindow.postMessage(event.data, window.location.origin);
           }
         };
-        
+
         window.addEventListener('message', messageHandler);
-        
+
         // Setup socket listeners for this specific analysis
         import('socket.io-client').then(({ io }) => {
           const socket = io(SOCKET_HOST);
-          
+
           socket.on('video-audio-analysis-update', (data) => {
             if (data.reportId === audioReportId) {
               audioReportWindow.postMessage({
@@ -132,7 +132,7 @@ export default function ReportPage() {
               }, window.location.origin);
             }
           });
-          
+
           socket.on('video-audio-analysis-complete', (data) => {
             if (data.reportId === audioReportId) {
               audioReportWindow.postMessage({
@@ -143,7 +143,7 @@ export default function ReportPage() {
               window.removeEventListener('message', messageHandler);
             }
           });
-          
+
           socket.on('video-audio-analysis-error', (data) => {
             if (data.reportId === audioReportId) {
               audioReportWindow.postMessage({
@@ -155,7 +155,7 @@ export default function ReportPage() {
             }
           });
         });
-        
+
       } else {
         console.error('Audio analysis failed:', result.error);
         alert('Audio analysis failed: ' + result.error);
@@ -754,82 +754,82 @@ export default function ReportPage() {
                 <div style={styles.placeholderBox}>
                   <div style={styles.graphTitle}>Face Emotion Analysis</div>
                   {/* Face Emotion Analysis Section */}
-<section style={{ margin: '5px 0' }}>
-  <div
-    className="scroll-chart"
-    style={{
-      width: '100%',
-      overflowX: 'scroll',
-      overflowY: 'hidden',
-    }}
-  >
-    <div
-      style={{
-        display: 'flex',
-        minWidth: '600px',
-        height: '60px',
-        borderRadius: '8px',
-        overflow: 'hidden',
-      }}
-    >
-      {(() => {
-        let accumulatedWidth = 0;
-        return segments.map((seg, i) => {
-          let widthPct;
-          if (i < segments.length - 1) {
-            widthPct = ((seg.end - seg.start) / totalDur) * 100;
-            accumulatedWidth += widthPct;
-          } else {
-            widthPct = 100 - accumulatedWidth;
-          }
-          const emo = emoSeg[i] || 'None';
-          const timeStart = `${seg.start.toFixed(2)}s`;
-          const timeEnd = `${seg.end.toFixed(2)}s`;
-          const tipId = `tip-${i}`;
+                  <section style={{ margin: '5px 0' }}>
+                    <div
+                      className="scroll-chart"
+                      style={{
+                        width: '100%',
+                        overflowX: 'scroll',
+                        overflowY: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          minWidth: '600px',
+                          height: '60px',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {(() => {
+                          let accumulatedWidth = 0;
+                          return segments.map((seg, i) => {
+                            let widthPct;
+                            if (i < segments.length - 1) {
+                              widthPct = ((seg.end - seg.start) / totalDur) * 100;
+                              accumulatedWidth += widthPct;
+                            } else {
+                              widthPct = 100 - accumulatedWidth;
+                            }
+                            const emo = emoSeg[i] || 'None';
+                            const timeStart = `${seg.start.toFixed(2)}s`;
+                            const timeEnd = `${seg.end.toFixed(2)}s`;
+                            const tipId = `tip-${i}`;
 
-          return (
-            <div
-              key={i}
-              data-tooltip-id={tipId}
-              data-tooltip-content={`${emo}: ${timeStart} – ${timeEnd}`}
-              style={{
-                width: `${widthPct}%`,
-                height: '100%',
-                backgroundColor: emotionColors[emo] || '#000',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '4px',
-                boxSizing: 'border-box',
-                borderRight:
-                  i < segments.length - 1 ? '1px solid rgba(255,255,255,0.5)' : 'none',
-                borderTopLeftRadius: i === 0 ? '8px' : '0',
-                borderBottomLeftRadius: i === 0 ? '8px' : '0',
-                borderTopRightRadius: i === segments.length - 1 ? '8px' : '0',
-                borderBottomRightRadius: i === segments.length - 1 ? '8px' : '0'
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '0.8em',
-                  fontWeight: '600',
-                  lineHeight: 1.2,
-                  textAlign: 'center',
-                  color: '#fff',
-                  marginBottom: '2px'
-                }}
-              >
-                {emo}
-              </span>
-              <RTTooltip id={tipId} place="top" />
-            </div>
-          );
-        });
-      })()}
-    </div>
-  </div>
-</section>
+                            return (
+                              <div
+                                key={i}
+                                data-tooltip-id={tipId}
+                                data-tooltip-content={`${emo}: ${timeStart} – ${timeEnd}`}
+                                style={{
+                                  width: `${widthPct}%`,
+                                  height: '100%',
+                                  backgroundColor: emotionColors[emo] || '#000',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  padding: '4px',
+                                  boxSizing: 'border-box',
+                                  borderRight:
+                                    i < segments.length - 1 ? '1px solid rgba(255,255,255,0.5)' : 'none',
+                                  borderTopLeftRadius: i === 0 ? '8px' : '0',
+                                  borderBottomLeftRadius: i === 0 ? '8px' : '0',
+                                  borderTopRightRadius: i === segments.length - 1 ? '8px' : '0',
+                                  borderBottomRightRadius: i === segments.length - 1 ? '8px' : '0'
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: '0.8em',
+                                    fontWeight: '600',
+                                    lineHeight: 1.2,
+                                    textAlign: 'center',
+                                    color: '#fff',
+                                    marginBottom: '2px'
+                                  }}
+                                >
+                                  {emo}
+                                </span>
+                                <RTTooltip id={tipId} place="top" />
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </section>
 
                   {/* Video Start / End labels */}
                   <div style={styles.barLabels}>
@@ -851,57 +851,57 @@ export default function ReportPage() {
                 </div>
 
                 {/* Graph 2 */}
-<div style={styles.placeholderBox}>
-  <div style={styles.graphTitle}>Movement Analysis</div>
+                <div style={styles.placeholderBox}>
+                  <div style={styles.graphTitle}>Movement Analysis</div>
 
-  {/* Horizontally scrollable chart container */}
-  <div
-    className="scroll-chart"
-    style={{
-      width: '100%',
-      overflowX: 'scroll',
-      overflowY: 'hidden',
-    }}
-  >
-    <div style={{ minWidth: '600px', height: 300 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={movementData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey="second"
-            tickFormatter={(val, index) => {
-              if (index === 4) return 'Video Start';
-              if (index === movementData.length - 8) return 'Video End';
-              return '';
-            }}
-          />
-          <YAxis
-            domain={[0, 10]}
-            ticks={[1, 3, 5, 7, 9]}
-            tickFormatter={(val) => {
-              if (val === 1) return 'Left';
-              if (val === 3) return 'Middle Left';
-              if (val === 5) return 'Center';
-              if (val === 7) return 'Middle Right';
-              if (val === 9) return 'Right';
-              return '';
-            }}
-          />
-          <Tooltip
-            labelFormatter={(label) => `Time: ${label}`}
-            formatter={(value, name, props) =>
-              [`${value.toFixed(2)} (${props.payload.label})`, 'Position']
-            }
-          />
-          <Line type="monotone" dataKey="position" stroke="#5D2E8C" dot />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  </div>
+                  {/* Horizontally scrollable chart container */}
+                  <div
+                    className="scroll-chart"
+                    style={{
+                      width: '100%',
+                      overflowX: 'scroll',
+                      overflowY: 'hidden',
+                    }}
+                  >
+                    <div style={{ minWidth: '600px', height: 300 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={movementData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="second"
+                            tickFormatter={(val, index) => {
+                              if (index === 4) return 'Video Start';
+                              if (index === movementData.length - 8) return 'Video End';
+                              return '';
+                            }}
+                          />
+                          <YAxis
+                            domain={[0, 10]}
+                            ticks={[1, 3, 5, 7, 9]}
+                            tickFormatter={(val) => {
+                              if (val === 1) return 'Left';
+                              if (val === 3) return 'Middle Left';
+                              if (val === 5) return 'Center';
+                              if (val === 7) return 'Middle Right';
+                              if (val === 9) return 'Right';
+                              return '';
+                            }}
+                          />
+                          <Tooltip
+                            labelFormatter={(label) => `Time: ${label}`}
+                            formatter={(value, name, props) =>
+                              [`${value.toFixed(2)} (${props.payload.label})`, 'Position']
+                            }
+                          />
+                          <Line type="monotone" dataKey="position" stroke="#5D2E8C" dot />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
 
-  <div style={styles.suggestionsTitle}>Suggestions for Improvement</div>
-  <div style={styles.suggestionText}>{reportData.movementText}</div>
-</div>
+                  <div style={styles.suggestionsTitle}>Suggestions for Improvement</div>
+                  <div style={styles.suggestionText}>{reportData.movementText}</div>
+                </div>
 
                 <div className="breakdown-chart-pair" style={{ ...styles.breakdownContent, flexDirection: 'row', justifyContent: 'space-between' }}>
                   {/* Shoulder Posture Chart */}
