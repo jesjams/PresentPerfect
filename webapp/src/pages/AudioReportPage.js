@@ -9,6 +9,7 @@ import {
   Tooltip
 } from 'recharts';
 import html2canvas from 'html2canvas';
+import { useAuth } from '../context/AuthContext';
 import { FaDownload } from 'react-icons/fa';
 
 export default function AudioReportPage() {
@@ -19,11 +20,32 @@ export default function AudioReportPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Initializing analysis...');
   const [analysisError, setAnalysisError] = useState(null);
-  
+
+  const { user } = useAuth();
+  const username = user?.email?.split('@')[0] || 'Guest';
+
+  const date = new Date().toLocaleDateString('en-AU', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const chartWidth = isMobile ? 300 : 400;
+  const chartHeight = isMobile ? 240 : 400;
+  const outerRadius = isMobile ? 80 : 120;
+
   // Audio playback states
   const [isPlayingEnhanced, setIsPlayingEnhanced] = useState(false);
   const [currentView, setCurrentView] = useState('both');
-  
+
   const enhancedAudioRef = useRef(null);
   const [audioError, setAudioError] = useState('');
   const BASE_URL = process.env.REACT_APP_API_HOST;
@@ -40,7 +62,6 @@ export default function AudioReportPage() {
       borderRadius: '20px',
       padding: '10px',
       maxWidth: '1200px',
-      minWidth: '600px',
       margin: '0 auto'
     },
     reportBoxInner: {
@@ -71,7 +92,7 @@ export default function AudioReportPage() {
     },
     // NEW: Source indicator styles
     sourceIndicator: {
-      display: 'inline-block', 
+      display: 'inline-block',
       backgroundColor: dataSource === 'video' ? '#e8f5e8' : '#f0f8ff',
       border: `2px solid ${dataSource === 'video' ? '#28a745' : '#007bff'}`,
       borderRadius: '1rem',
@@ -93,7 +114,7 @@ export default function AudioReportPage() {
       marginTop: '0.5rem',
       margin: '0.5rem 0 0 0'
     },
-    
+
     reportContainer: {
       display: 'flex',
       flexWrap: 'wrap',
@@ -103,8 +124,7 @@ export default function AudioReportPage() {
     leftPanel: {
       backgroundColor: '#fff',
       borderRadius: '15px',
-      padding: '40px',
-      minWidth: '300px',
+      minWidth: '50px',
       justifyContent: 'center',
       justifyItems: 'center',
       flex: '1 1 400px'
@@ -117,7 +137,7 @@ export default function AudioReportPage() {
     },
     metaInfo: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fit, max(1fr))',
       gap: '1.5rem',
       marginBottom: '3rem',
       maxWidth: '1000px',
@@ -140,6 +160,17 @@ export default function AudioReportPage() {
       fontWeight: '1000',
       fontStyle: 'italic'
     },
+    userInfoCard: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: '20px'
+    },
+    userInfoValue: {
+      fontSize: '18px',
+      fontWeight: '700',
+      marginBottom: '10px'
+    },
     scoreRadarContainer: {
       display: 'flex',
       flexWrap: 'wrap',
@@ -150,7 +181,7 @@ export default function AudioReportPage() {
     },
     radarCard: {
       display: 'flex',
-      flexDirection: 'column', 
+      flexDirection: 'column',
       alignItems: 'center',
       backgroundColor: 'white',
       borderRadius: '1.5rem',
@@ -168,7 +199,7 @@ export default function AudioReportPage() {
     },
     scoreSection: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', // Increased from 200px to ensure better fit
+      gridTemplateColumns: 'repeat(auto-fit, max(1fr))', // Increased from 200px to ensure better fit
       gap: '1.5rem', // Reduced gap slightly
       marginBottom: '3rem',
       maxWidth: '1200px',
@@ -181,7 +212,6 @@ export default function AudioReportPage() {
       boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
       textAlign: 'center',
       border: '2px solid #e0e0e0',
-      minWidth: '160px',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
@@ -218,6 +248,7 @@ export default function AudioReportPage() {
     toggleButtonActive: {
       backgroundColor: '#5D2E8C',
       color: 'white',
+      border: '2px solid white',
       transform: 'translateY(-2px)',
       boxShadow: '0 4px 12px rgba(93, 46, 140, 0.3)'
     },
@@ -228,7 +259,7 @@ export default function AudioReportPage() {
     },
     transcriptGrid: {
       display: 'grid',
-      gridTemplateColumns: currentView === 'both' ? '1fr 1fr' : '1fr',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: '2rem',
       marginBottom: '3rem'
     },
@@ -333,7 +364,9 @@ export default function AudioReportPage() {
     },
     presentationMetricsGrid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+      gridTemplateColumns: isMobile
+      ? '1fr'
+      : 'repeat(2, 1fr)',
       gap: '2rem',
       marginBottom: '3rem'
     },
@@ -384,7 +417,7 @@ export default function AudioReportPage() {
     vocalDynamicsSection: {
       marginBottom: '3rem'
     },
-  
+
     vocalDynamicsHeader: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -396,18 +429,18 @@ export default function AudioReportPage() {
       boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
       border: '1px solid #e0e0e0'
     },
-    
+
     sectionTitle: {
       fontSize: '2rem',
       color: '#5D2E8C',
       fontWeight: 'bold',
       margin: 0
     },
-    
+
     overallDynamicsScore: {
       textAlign: 'center'
     },
-    
+
     readinessLevel: {
       fontSize: '1rem',
       color: '#666',
@@ -424,7 +457,7 @@ export default function AudioReportPage() {
       border: '1px solid #e0e0e0',
       marginBottom: '2rem'
     },
-    
+
     legendTitle: {
       fontSize: '1.4rem',
       color: '#5D2E8C',
@@ -432,40 +465,40 @@ export default function AudioReportPage() {
       marginBottom: '1.5rem',
       textAlign: 'center'
     },
-    
+
     legendGrid: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
       gap: '1rem'
     },
-    
+
     legendItem: {
       display: 'flex',
       alignItems: 'center',
       gap: '0.75rem',
       padding: '0.5rem'
     },
-    
+
     legendColor: {
       width: '16px',
       height: '16px',
       borderRadius: '3px',
       flexShrink: 0
     },
-    
+
     legendText: {
       fontSize: '0.95rem',
       color: '#333',
       fontWeight: '500'
     },
-  
+
     vocalDynamicsGrid: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
       gap: '2rem',
       marginBottom: '2rem'
     },
-    
+
     vocalCard: {
       backgroundColor: 'white',
       borderRadius: '1.5rem',
@@ -474,14 +507,14 @@ export default function AudioReportPage() {
       border: '1px solid #e0e0e0',
       transition: 'transform 0.2s ease, box-shadow 0.2s ease'
     },
-    
+
     vocalCardHeader: {
       display: 'flex',
       alignItems: 'center',
       gap: '1rem',
       marginBottom: '1.5rem'
     },
-    
+
     iconContainer: {
       display: 'flex',
       alignItems: 'center',
@@ -492,25 +525,25 @@ export default function AudioReportPage() {
       backgroundColor: 'rgba(93, 46, 140, 0.1)',
       flexShrink: 0
     },
-    
+
     cardIcon: {
       width: '1.5rem',
       height: '1.5rem',
       color: '#5D2E8C'
     },
-    
+
     vocalIcon: {
       fontSize: '2.5rem',
       minWidth: '3rem'
     },
-    
+
     vocalCardTitle: {
       fontSize: '1.3rem',
       color: '#5D2E8C',
       fontWeight: 'bold',
       margin: '0 0 0.5rem 0'
     },
-    
+
     vocalScore: {
       fontSize: '1.5rem',
       fontWeight: 'bold'
@@ -522,13 +555,13 @@ export default function AudioReportPage() {
       fontWeight: '500',
       marginTop: '0.25rem'
     },
-  
+
     vocalCardContent: {
       display: 'flex',
       flexDirection: 'column',
       gap: '0.8rem'
     },
-    
+
     vocalMetric: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -536,13 +569,13 @@ export default function AudioReportPage() {
       padding: '0.5rem 0',
       borderBottom: '1px solid #f0f0f0'
     },
-    
+
     metricLabel: {
       fontSize: '0.95rem',
       color: '#666',
       fontWeight: '500'
     },
-    
+
     metricValue: {
       fontSize: '1rem',
       color: '#333',
@@ -559,14 +592,14 @@ export default function AudioReportPage() {
       lineHeight: '1.5',
       color: '#0c5460'
     },
-    
+
     vocalSummaryCard: {
       backgroundColor: '#f8f9fa',
       borderRadius: '1.5rem',
       padding: '2rem',
       border: '1px solid #e9ecef'
     },
-    
+
     vocalSummaryContent: {
       fontSize: '1.1rem',
       lineHeight: '1.6',
@@ -582,13 +615,13 @@ export default function AudioReportPage() {
       border: '1px solid #e0e0e0',
       marginBottom: '2rem'
     },
-    
+
     benchmarkContent: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
       gap: '1rem'
     },
-    
+
     benchmarkItem: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -598,13 +631,13 @@ export default function AudioReportPage() {
       borderRadius: '0.75rem',
       border: '1px solid #e9ecef'
     },
-    
+
     benchmarkLabel: {
       fontSize: '1rem',
       color: '#666',
       fontWeight: '500'
     },
-    
+
     benchmarkValue: {
       fontSize: '1.1rem',
       color: '#5D2E8C',
@@ -692,9 +725,9 @@ export default function AudioReportPage() {
       if (event.origin !== window.location.origin) {
         return;
       }
-      
+
       console.log('[AudioReport] Received message:', event.data);
-      
+
       if (event.data.type === 'AUDIO_REPORT_DATA') {
         console.log('[AudioReport] Received final data from video report:', event.data.data);
         setReportData(event.data.data);
@@ -714,13 +747,13 @@ export default function AudioReportPage() {
     };
 
     window.addEventListener('message', handleMessage);
-    
+
     // If we don't have data and we're not in loading state, we came from direct upload
     if (location.state?.reportData) {
       setDataSource('direct');
       setIsLoading(false);
     }
-    
+
     return () => {
       window.removeEventListener('message', handleMessage);
     };
@@ -734,8 +767,8 @@ export default function AudioReportPage() {
           <p style={{ color: '#dc3545', marginTop: '1rem' }}>
             {analysisError}
           </p>
-          <button 
-            onClick={() => window.close()} 
+          <button
+            onClick={() => window.close()}
             style={{
               marginTop: '1rem',
               padding: '0.5rem 1rem',
@@ -756,17 +789,17 @@ export default function AudioReportPage() {
   if (isLoading || !reportData) {
     return (
       <div style={styles.container}>
-        <div style={styles.reportBoxOuter}>
+        <div ref={reportRef} style={styles.reportBoxOuter}>
           <div style={styles.reportBoxInner}>
             <div style={styles.header}>
               <h1 style={styles.title}>Processing Audio Analysis</h1>
               <p style={styles.subtitle}>
-                {dataSource === 'video' 
-                  ? 'Extracting and analyzing audio from your video...' 
+                {dataSource === 'video'
+                  ? 'Extracting and analyzing audio from your video...'
                   : 'Please wait while we process your audio data...'
                 }
               </p>
-              
+
               {/* Loading Progress */}
               <div style={{
                 maxWidth: '600px',
@@ -784,7 +817,7 @@ export default function AudioReportPage() {
                 }}>
                   {loadingMessage}
                 </div>
-                
+
                 <div style={{
                   width: '100%',
                   height: '1.2rem',
@@ -801,7 +834,7 @@ export default function AudioReportPage() {
                     transition: 'width 0.5s ease'
                   }} />
                 </div>
-                
+
                 <div style={{
                   textAlign: 'center',
                   fontSize: '1rem',
@@ -810,7 +843,7 @@ export default function AudioReportPage() {
                 }}>
                   {loadingProgress}%
                 </div>
-                
+
                 {dataSource === 'video' && (
                   <div style={{
                     marginTop: '1rem',
@@ -918,7 +951,7 @@ export default function AudioReportPage() {
   const getScoreColor = (score) => {
     const safeScore = Math.max(0, Math.min(100, Number(score) || 0)); // Ensure 0-100 range
     if (safeScore >= 80) return '#28a745';
-    if (safeScore >= 60) return '#ffc107'; 
+    if (safeScore >= 60) return '#ffc107';
     return '#dc3545';
   };
 
@@ -1022,10 +1055,6 @@ export default function AudioReportPage() {
               font-size: 0.9rem !important;
               line-height: 1.1 !important;
             }
-            .radar-chart {
-              width: 350px !important;
-              height: 280px !important;
-            }
           }
           
           @media (max-width: 480px) {
@@ -1048,62 +1077,61 @@ export default function AudioReportPage() {
             .report-container > div {
               width: 100% !important;
             }
+            .transcript-card {
+              grid-template-columns: 1fr;
+              flex-direction: column !important;
+            }
           }
         `}
       </style>
-      
+
       <div style={styles.reportBoxOuter}>
         <div style={styles.reportBoxInner}>
           <div style={styles.header}>
             <h1 style={styles.title}>Here Are Your Results!</h1>
             <div style={styles.divider}></div>
-            
+
             {/* NEW: Source Indicator */}
             <div style={styles.sourceIndicator}>
               <p style={styles.sourceText}>
                 {dataSource === 'video' ? '🎥 Audio extracted from video analysis' : '🎵 Direct audio analysis'}
               </p>
               <p style={styles.sourceSubtext}>
-                {dataSource === 'video' 
+                {dataSource === 'video'
                   ? 'This analysis was generated from the audio track of your video presentation'
                   : 'This analysis was generated from your uploaded audio file'
                 }
               </p>
             </div>
 
-          <div className="report-container" style={styles.reportContainer}>
-            
-            {/* RIGHT PANEL */}
-            <div className="left-panel" style={styles.leftPanel}>
-              {/* Presentation Scores */}
-                  <div style={{ textAlign: 'center', justifyContent: 'center', marginBottom: '10px', color: '#5D2E8C', fontSize: '20px', fontWeight: '600' }}>
-                    Performance Radar</div>
-                  <div className="radar-chart" style={{ margin: '0 auto', display: 'block' }}>
-                    <RadarChart width={400} height={320} cx={200} cy={160} outerRadius={120} data={radarData}>
-                      <PolarGrid stroke="#5D2E8C" />
-                      <PolarAngleAxis 
-                        dataKey="subject" 
-                        stroke="#5D2E8C" 
-                        tick={{ fontSize: 12, fill: '#5D2E8C' }}
-                        className="radar-labels"
-                      />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                      <Radar name="Score" dataKey="A" stroke="#5D2E8C" fill="#E2779C" fillOpacity={0.5} />
-                      <Tooltip />
-                    </RadarChart>
-                  </div>
-            </div>
-            
-            {/* LEFT PANEL */}
-            <div className="right-panel" style={styles.rightPanel}>
-              {/* Meta Information */}
+
+            <div className="report-container" style={styles.reportContainer}>
+
+              {/* LEFT PANEL */}
+              <div className="left-panel" style={styles.leftPanel}>
+                {/* Presentation Scores */}
+                <div style={{ textAlign: 'center', justifyContent: 'center', marginBottom: '10px', color: '#5D2E8C', fontSize: '20px', fontWeight: '600' }}>
+                  Performance Radar</div>
+                <RadarChart width={chartWidth} height={chartHeight} cx={chartWidth / 2} data={radarData} outerRadius={outerRadius}>
+                  <PolarGrid stroke="#5D2E8C" />
+                  <PolarAngleAxis
+                    dataKey="subject"
+                    stroke="#5D2E8C"
+                    tick={{ fontSize: 12, fill: '#5D2E8C' }}
+                    className="radar-labels"
+                  />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <Radar name="Score" dataKey="A" stroke="#5D2E8C" fill="#E2779C" fillOpacity={0.5} />
+                  <Tooltip />
+                </RadarChart>
+              </div>
+
+              {/* RIGHT PANEL */}
+              <div className="right-panel" style={styles.rightPanel}>
+                {/* Meta Information */}
                 <div style={styles.metaItem}>
                   <div style={styles.metaLabel}>Score</div>
-                  <div style={{...styles.metaValue, color: getScoreColor(overallScore)}}>{overallScore}</div>
-                </div>
-                <div style={styles.metaItem}>
-                  <div style={styles.metaLabel}>Duration</div>
-                  <div style={styles.metaValue}>{formatDuration(duration)}</div>
+                  <div style={{ ...styles.metaValue, color: getScoreColor(overallScore) }}>{overallScore}</div>
                 </div>
                 <div style={styles.metaItem}>
                   <div style={styles.metaLabel}>Language</div>
@@ -1113,497 +1141,519 @@ export default function AudioReportPage() {
                   <div style={styles.metaLabel}>Speaking Rate</div>
                   <div style={styles.metaValue}>{speakingRate} WPM</div>
                 </div>
-            </div>
-          </div>
-        </div>
-        {/* End header */}
-
-        {/* Vocal Dynamics Section */}
-        {reportData.vocalDynamics && (
-        <div style={styles.vocalDynamicsSection}>
-          {/* Vocal Dynamics Header */}
-          <div style={styles.vocalDynamicsHeader}>
-            <h2 style={styles.sectionTitle}>Advanced Vocal Analysis</h2>
-            <div style={styles.overallDynamicsScore}>
-              <div style={{
-                ...styles.scoreNumber, 
-                color: getScoreColor(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)),
-                fontSize: '2.5rem'
-              }}>
-                {safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)}
-              </div>
-              <div style={styles.scoreLabel}>Vocal Dynamics Score</div>
-              <div style={styles.readinessLevel}>
-                {safeString(reportData.vocalDynamics.presentation_readiness?.readiness_level, 'Beginner')} Level
-              </div>
-              <div style={styles.scoreRange}>
-                {getScoreRangeText(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0))}
               </div>
             </div>
-          </div>
 
-          {/* Score Range Legend */}
-          <div style={styles.scoreRangeLegend}>
-            <h3 style={styles.legendTitle}>Performance Levels</h3>
-            <div style={styles.legendGrid}>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendColor, backgroundColor: '#dc3545'}}></div>
-                <span style={styles.legendText}>Beginner (0-39)</span>
+          <div className="report-container" style={{...styles.reportContainer, paddingTop: '20px'}}>
+              <div className="left-panel" style={styles.leftPanel}>
+                <div style={styles.metaItem}>
+                  <div style={styles.metaLabel}>Duration</div>
+                  <div style={styles.metaValue}>{formatDuration(duration)}</div>
+                </div>
               </div>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendColor, backgroundColor: '#ffc107'}}></div>
-                <span style={styles.legendText}>Intermediate (40-59)</span>
+              
+              <div className="right-panel" style={styles.rightPanel}>
+                {/* Meta Information */}
+                <div style={{ ...styles.metaItem, ...styles.userInfoCard }}>
+                  <div style={styles.metaLabel}>Username</div>
+                  <div style={styles.userInfoValue}>{username}</div>
+                  <div style={styles.metaLabel}>Date</div>
+                  <div style={styles.userInfoValue}>{date}</div>
+                </div>
               </div>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendColor, backgroundColor: '#fd7e14'}}></div>
-                <span style={styles.legendText}>Good (60-79)</span>
-              </div>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendColor, backgroundColor: '#28a745'}}></div>
-                <span style={styles.legendText}>Excellent (80-89)</span>
-              </div>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendColor, backgroundColor: '#007bff'}}></div>
-                <span style={styles.legendText}>Outstanding (90-100)</span>
-              </div>
+
             </div>
-          </div>
-
-          {/* Vocal Dynamics Grid */}
-          <div style={styles.vocalDynamicsGrid}>
             
-            {/* Pitch Dynamics Card */}
-            <div style={styles.vocalCard}>
-              <div style={styles.vocalCardHeader}>
-                <div style={styles.iconContainer}>
-                  <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={styles.vocalCardTitle}>Pitch Variation</h3>
+          </div>
+
+          {/* End header */}
+
+          {/* Vocal Dynamics Section */}
+          {reportData.vocalDynamics && (
+            <div style={styles.vocalDynamicsSection}>
+              {/* Vocal Dynamics Header */}
+              <div style={styles.vocalDynamicsHeader}>
+                <h2 style={styles.sectionTitle}>Advanced Vocal Analysis</h2>
+                <div style={styles.overallDynamicsScore}>
                   <div style={{
-                    ...styles.vocalScore,
-                    color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0))
+                    ...styles.scoreNumber,
+                    color: getScoreColor(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)),
+                    fontSize: '2.5rem'
                   }}>
-                    {safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0)}/100
+                    {safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)}
                   </div>
-                  <div style={styles.scoreRangeIndicator}>
-                    {getScoreRangeText(safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0))}
+                  <div style={styles.scoreLabel}>Vocal Dynamics Score</div>
+                  <div style={styles.readinessLevel}>
+                    {safeString(reportData.vocalDynamics.presentation_readiness?.readiness_level, 'Beginner')} Level
+                  </div>
+                  <div style={styles.scoreRange}>
+                    {getScoreRangeText(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0))}
                   </div>
                 </div>
               </div>
-              <div style={styles.vocalCardContent}>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Dynamic Range:</span>
-                  <span style={styles.metricValue}>
-                    {safeString(reportData.vocalDynamics.pitch_dynamics?.dynamic_range, 'Moderate')}
-                  </span>
+
+              {/* Score Range Legend */}
+              <div style={styles.scoreRangeLegend}>
+                <h3 style={styles.legendTitle}>Performance Levels</h3>
+                <div style={styles.legendGrid}>
+                  <div style={styles.legendItem}>
+                    <div style={{ ...styles.legendColor, backgroundColor: '#dc3545' }}></div>
+                    <span style={styles.legendText}>Beginner (0-39)</span>
+                  </div>
+                  <div style={styles.legendItem}>
+                    <div style={{ ...styles.legendColor, backgroundColor: '#ffc107' }}></div>
+                    <span style={styles.legendText}>Intermediate (40-59)</span>
+                  </div>
+                  <div style={styles.legendItem}>
+                    <div style={{ ...styles.legendColor, backgroundColor: '#fd7e14' }}></div>
+                    <span style={styles.legendText}>Good (60-79)</span>
+                  </div>
+                  <div style={styles.legendItem}>
+                    <div style={{ ...styles.legendColor, backgroundColor: '#28a745' }}></div>
+                    <span style={styles.legendText}>Excellent (80-89)</span>
+                  </div>
+                  <div style={styles.legendItem}>
+                    <div style={{ ...styles.legendColor, backgroundColor: '#007bff' }}></div>
+                    <span style={styles.legendText}>Outstanding (90-100)</span>
+                  </div>
                 </div>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Monotone Risk:</span>
-                  <span style={{
-                    ...styles.metricValue,
-                    color: safeScore(reportData.vocalDynamics.pitch_dynamics?.monotone_risk, 50) > 70 ? '#dc3545' : 
+              </div>
+
+              {/* Vocal Dynamics Grid */}
+              <div style={styles.vocalDynamicsGrid}>
+
+                {/* Pitch Dynamics Card */}
+                <div style={styles.vocalCard}>
+                  <div style={styles.vocalCardHeader}>
+                    <div style={styles.iconContainer}>
+                      <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={styles.vocalCardTitle}>Pitch Variation</h3>
+                      <div style={{
+                        ...styles.vocalScore,
+                        color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0))
+                      }}>
+                        {safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0)}/100
+                      </div>
+                      <div style={styles.scoreRangeIndicator}>
+                        {getScoreRangeText(safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0))}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={styles.vocalCardContent}>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Dynamic Range:</span>
+                      <span style={styles.metricValue}>
+                        {safeString(reportData.vocalDynamics.pitch_dynamics?.dynamic_range, 'Moderate')}
+                      </span>
+                    </div>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Monotone Risk:</span>
+                      <span style={{
+                        ...styles.metricValue,
+                        color: safeScore(reportData.vocalDynamics.pitch_dynamics?.monotone_risk, 50) > 70 ? '#dc3545' :
                           safeScore(reportData.vocalDynamics.pitch_dynamics?.monotone_risk, 50) > 40 ? '#ffc107' : '#28a745'
-                  }}>
-                    {safeScore(reportData.vocalDynamics.pitch_dynamics?.monotone_risk, 50)}%
-                  </span>
+                      }}>
+                        {safeScore(reportData.vocalDynamics.pitch_dynamics?.monotone_risk, 50)}%
+                      </span>
+                    </div>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Pitch Range:</span>
+                      <span style={styles.metricValue}>
+                        {safeNumber(reportData.vocalDynamics.pitch_dynamics?.pitch_range_hz, 0).toFixed(1)} Hz
+                      </span>
+                    </div>
+                    <div style={styles.improvementTip}>
+                      <strong>Next Level:</strong> {getPitchImprovementTip(safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0))}
+                    </div>
+                  </div>
                 </div>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Pitch Range:</span>
-                  <span style={styles.metricValue}>
-                    {safeNumber(reportData.vocalDynamics.pitch_dynamics?.pitch_range_hz, 0).toFixed(1)} Hz
-                  </span>
-                </div>
-                <div style={styles.improvementTip}>
-                  <strong>Next Level:</strong> {getPitchImprovementTip(safeScore(reportData.vocalDynamics.pitch_dynamics?.variation_score, 0))}
-                </div>
-              </div>
-            </div>
 
-            {/* Volume Dynamics Card */}
-            <div style={styles.vocalCard}>
-              <div style={styles.vocalCardHeader}>
-                <div style={styles.iconContainer}>
-                  <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 12.536a4 4 0 010-5.656m0 0a4 4 0 010 5.656m-2.828-2.828a2.5 2.5 0 010-3.536" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={styles.vocalCardTitle}>Volume Dynamics</h3>
-                  <div style={{
-                    ...styles.vocalScore,
-                    color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0))
-                  }}>
-                    {safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0)}/100
+                {/* Volume Dynamics Card */}
+                <div style={styles.vocalCard}>
+                  <div style={styles.vocalCardHeader}>
+                    <div style={styles.iconContainer}>
+                      <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 12.536a4 4 0 010-5.656m0 0a4 4 0 010 5.656m-2.828-2.828a2.5 2.5 0 010-3.536" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={styles.vocalCardTitle}>Volume Dynamics</h3>
+                      <div style={{
+                        ...styles.vocalScore,
+                        color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0))
+                      }}>
+                        {safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0)}/100
+                      </div>
+                      <div style={styles.scoreRangeIndicator}>
+                        {getScoreRangeText(safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0))}
+                      </div>
+                    </div>
                   </div>
-                  <div style={styles.scoreRangeIndicator}>
-                    {getScoreRangeText(safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0))}
+                  <div style={styles.vocalCardContent}>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Energy Presence:</span>
+                      <span style={styles.metricValue}>
+                        {safeString(reportData.vocalDynamics.volume_dynamics?.dynamic_presence, 'Moderate')}
+                      </span>
+                    </div>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Volume Range:</span>
+                      <span style={styles.metricValue}>
+                        {safeNumber(reportData.vocalDynamics.volume_dynamics?.volume_range, 0).toFixed(1)} dB
+                      </span>
+                    </div>
+                    <div style={styles.improvementTip}>
+                      <strong>Next Level:</strong> {getVolumeImprovementTip(safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0))}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div style={styles.vocalCardContent}>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Energy Presence:</span>
-                  <span style={styles.metricValue}>
-                    {safeString(reportData.vocalDynamics.volume_dynamics?.dynamic_presence, 'Moderate')}
-                  </span>
-                </div>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Volume Range:</span>
-                  <span style={styles.metricValue}>
-                    {safeNumber(reportData.vocalDynamics.volume_dynamics?.volume_range, 0).toFixed(1)} dB
-                  </span>
-                </div>
-                <div style={styles.improvementTip}>
-                  <strong>Next Level:</strong> {getVolumeImprovementTip(safeScore(reportData.vocalDynamics.volume_dynamics?.energy_score, 0))}
-                </div>
-              </div>
-            </div>
 
-            {/* Rhythm Analysis Card */}
-            <div style={styles.vocalCard}>
-              <div style={styles.vocalCardHeader}>
-                <div style={styles.iconContainer}>
-                  <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={styles.vocalCardTitle}>Speaking Rhythm</h3>
-                  <div style={{
-                    ...styles.vocalScore,
-                    color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0))
-                  }}>
-                    {safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0)}/100
+                {/* Rhythm Analysis Card */}
+                <div style={styles.vocalCard}>
+                  <div style={styles.vocalCardHeader}>
+                    <div style={styles.iconContainer}>
+                      <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={styles.vocalCardTitle}>Speaking Rhythm</h3>
+                      <div style={{
+                        ...styles.vocalScore,
+                        color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0))
+                      }}>
+                        {safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0)}/100
+                      </div>
+                      <div style={styles.scoreRangeIndicator}>
+                        {getScoreRangeText(safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0))}
+                      </div>
+                    </div>
                   </div>
-                  <div style={styles.scoreRangeIndicator}>
-                    {getScoreRangeText(safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0))}
+                  <div style={styles.vocalCardContent}>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Pace Category:</span>
+                      <span style={styles.metricValue}>
+                        {safeString(reportData.vocalDynamics.rhythm_analysis?.pace_category, 'Moderate')}
+                      </span>
+                    </div>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Estimated Pace:</span>
+                      <span style={styles.metricValue}>
+                        {Math.max(80, Math.min(200, safeNumber(reportData.vocalDynamics.rhythm_analysis?.estimated_pace_wpm, 150)))} WPM
+                      </span>
+                    </div>
+                    <div style={styles.improvementTip}>
+                      <strong>Next Level:</strong> {getRhythmImprovementTip(safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0))}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div style={styles.vocalCardContent}>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Pace Category:</span>
-                  <span style={styles.metricValue}>
-                    {safeString(reportData.vocalDynamics.rhythm_analysis?.pace_category, 'Moderate')}
-                  </span>
-                </div>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Estimated Pace:</span>
-                  <span style={styles.metricValue}>
-                    {Math.max(80, Math.min(200, safeNumber(reportData.vocalDynamics.rhythm_analysis?.estimated_pace_wpm, 150)))} WPM
-                  </span>
-                </div>
-                <div style={styles.improvementTip}>
-                  <strong>Next Level:</strong> {getRhythmImprovementTip(safeScore(reportData.vocalDynamics.rhythm_analysis?.rhythm_score, 0))}
-                </div>
-              </div>
-            </div>
 
-            {/* Pause Analysis Card */}
-            <div style={styles.vocalCard}>
-              <div style={styles.vocalCardHeader}>
-                <div style={styles.iconContainer}>
-                  <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={styles.vocalCardTitle}>Strategic Pauses</h3>
-                  <div style={{
-                    ...styles.vocalScore,
-                    color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0))
-                  }}>
-                    {safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0)}/100
+                {/* Pause Analysis Card */}
+                <div style={styles.vocalCard}>
+                  <div style={styles.vocalCardHeader}>
+                    <div style={styles.iconContainer}>
+                      <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={styles.vocalCardTitle}>Strategic Pauses</h3>
+                      <div style={{
+                        ...styles.vocalScore,
+                        color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0))
+                      }}>
+                        {safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0)}/100
+                      </div>
+                      <div style={styles.scoreRangeIndicator}>
+                        {getScoreRangeText(safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0))}
+                      </div>
+                    </div>
                   </div>
-                  <div style={styles.scoreRangeIndicator}>
-                    {getScoreRangeText(safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0))}
-                  </div>
-                </div>
-              </div>
-              <div style={styles.vocalCardContent}>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Pause Effectiveness:</span>
-                  <span style={styles.metricValue}>
-                    {safeString(reportData.vocalDynamics.pause_analysis?.pause_effectiveness, 'Moderate')}
-                  </span>
-                </div>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Average Pause:</span>
-                  <span style={styles.metricValue}>
-                    {Math.max(0.1, Math.min(5.0, safeNumber(reportData.vocalDynamics.pause_analysis?.avg_pause_duration, 0.5))).toFixed(1)}s
-                  </span>
-                </div>
-                <div style={styles.improvementTip}>
-                  <strong>Next Level:</strong> {getPauseImprovementTip(safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0))}
-                </div>
-              </div>
-            </div>
-
-            {/* Vocal Health Card */}
-            <div style={styles.vocalCard}>
-              <div style={styles.vocalCardHeader}>
-                <div style={styles.iconContainer}>
-                  <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={styles.vocalCardTitle}>Vocal Health</h3>
-                  <div style={{
-                    ...styles.vocalScore,
-                    color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0))
-                  }}>
-                    {safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0)}/100
-                  </div>
-                  <div style={styles.scoreRangeIndicator}>
-                    {getScoreRangeText(safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0))}
+                  <div style={styles.vocalCardContent}>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Pause Effectiveness:</span>
+                      <span style={styles.metricValue}>
+                        {safeString(reportData.vocalDynamics.pause_analysis?.pause_effectiveness, 'Moderate')}
+                      </span>
+                    </div>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Average Pause:</span>
+                      <span style={styles.metricValue}>
+                        {Math.max(0.1, Math.min(5.0, safeNumber(reportData.vocalDynamics.pause_analysis?.avg_pause_duration, 0.5))).toFixed(1)}s
+                      </span>
+                    </div>
+                    <div style={styles.improvementTip}>
+                      <strong>Next Level:</strong> {getPauseImprovementTip(safeScore(reportData.vocalDynamics.pause_analysis?.strategic_score, 0))}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div style={styles.vocalCardContent}>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Breathiness Level:</span>
-                  <span style={styles.metricValue}>
-                    {safeScore(reportData.vocalDynamics.vocal_health_indicators?.breathiness_level, 25)}%
-                  </span>
-                </div>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Voice Stability:</span>
-                  <span style={styles.metricValue}>
-                    {safeString(reportData.vocalDynamics.vocal_health_indicators?.voice_stability, 'Good')}
-                  </span>
-                </div>
-                <div style={styles.improvementTip}>
-                  <strong>Next Level:</strong> {getHealthImprovementTip(safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0))}
-                </div>
-              </div>
-            </div>
 
-            {/* Overall Readiness Card */}
-            <div style={styles.vocalCard}>
-              <div style={styles.vocalCardHeader}>
-                <div style={styles.iconContainer}>
-                  <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={styles.vocalCardTitle}>Presentation Readiness</h3>
-                  <div style={{
-                    ...styles.vocalScore,
-                    color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0))
-                  }}>
-                    {safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)}/100
+                {/* Vocal Health Card */}
+                <div style={styles.vocalCard}>
+                  <div style={styles.vocalCardHeader}>
+                    <div style={styles.iconContainer}>
+                      <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={styles.vocalCardTitle}>Vocal Health</h3>
+                      <div style={{
+                        ...styles.vocalScore,
+                        color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0))
+                      }}>
+                        {safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0)}/100
+                      </div>
+                      <div style={styles.scoreRangeIndicator}>
+                        {getScoreRangeText(safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0))}
+                      </div>
+                    </div>
                   </div>
-                  <div style={styles.scoreRangeIndicator}>
-                    {safeString(reportData.vocalDynamics.presentation_readiness?.readiness_level, 'Beginner')}
+                  <div style={styles.vocalCardContent}>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Breathiness Level:</span>
+                      <span style={styles.metricValue}>
+                        {safeScore(reportData.vocalDynamics.vocal_health_indicators?.breathiness_level, 25)}%
+                      </span>
+                    </div>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Voice Stability:</span>
+                      <span style={styles.metricValue}>
+                        {safeString(reportData.vocalDynamics.vocal_health_indicators?.voice_stability, 'Good')}
+                      </span>
+                    </div>
+                    <div style={styles.improvementTip}>
+                      <strong>Next Level:</strong> {getHealthImprovementTip(safeScore(reportData.vocalDynamics.vocal_health_indicators?.vocal_clarity, 0))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overall Readiness Card */}
+                <div style={styles.vocalCard}>
+                  <div style={styles.vocalCardHeader}>
+                    <div style={styles.iconContainer}>
+                      <svg style={styles.cardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={styles.vocalCardTitle}>Presentation Readiness</h3>
+                      <div style={{
+                        ...styles.vocalScore,
+                        color: getAdvancedScoreColor(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0))
+                      }}>
+                        {safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)}/100
+                      </div>
+                      <div style={styles.scoreRangeIndicator}>
+                        {safeString(reportData.vocalDynamics.presentation_readiness?.readiness_level, 'Beginner')}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={styles.vocalCardContent}>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Professional Level:</span>
+                      <span style={styles.metricValue}>
+                        {safeString(reportData.vocalDynamics.presentation_readiness?.professional_level, 'Developing')}
+                      </span>
+                    </div>
+                    <div style={styles.vocalMetric}>
+                      <span style={styles.metricLabel}>Improvement Areas:</span>
+                      <span style={styles.metricValue}>
+                        {Math.max(0, Math.min(6, safeNumber(reportData.vocalDynamics.presentation_readiness?.improvement_areas_count, 2)))}
+                      </span>
+                    </div>
+                    <div style={styles.improvementTip}>
+                      <strong>Next Level:</strong> {getReadinessImprovementTip(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0))}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Professional Benchmark Comparison */}
+              <div style={styles.benchmarkCard}>
+                <h3 style={styles.cardTitle}>Professional Speaker Comparison</h3>
+                <div style={styles.benchmarkContent}>
+                  <div style={styles.benchmarkItem}>
+                    <span style={styles.benchmarkLabel}>Your Overall Score:</span>
+                    <span style={styles.benchmarkValue}>
+                      {safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)}/100
+                    </span>
+                  </div>
+                  <div style={styles.benchmarkItem}>
+                    <span style={styles.benchmarkLabel}>Professional Benchmark:</span>
+                    <span style={styles.benchmarkValue}>85+</span>
+                  </div>
+                  <div style={styles.benchmarkItem}>
+                    <span style={styles.benchmarkLabel}>TED Talk Average:</span>
+                    <span style={styles.benchmarkValue}>78</span>
+                  </div>
+                  <div style={styles.benchmarkItem}>
+                    <span style={styles.benchmarkLabel}>Corporate Presentation Average:</span>
+                    <span style={styles.benchmarkValue}>65</span>
                   </div>
                 </div>
               </div>
-              <div style={styles.vocalCardContent}>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Professional Level:</span>
-                  <span style={styles.metricValue}>
-                    {safeString(reportData.vocalDynamics.presentation_readiness?.professional_level, 'Developing')}
-                  </span>
-                </div>
-                <div style={styles.vocalMetric}>
-                  <span style={styles.metricLabel}>Improvement Areas:</span>
-                  <span style={styles.metricValue}>
-                    {Math.max(0, Math.min(6, safeNumber(reportData.vocalDynamics.presentation_readiness?.improvement_areas_count, 2)))}
-                  </span>
-                </div>
-                <div style={styles.improvementTip}>
-                  <strong>Next Level:</strong> {getReadinessImprovementTip(safeScore(reportData.vocalDynamics.overall_dynamics_score, 0))}
+
+              {/* Vocal Summary */}
+              <div style={styles.vocalSummaryCard}>
+                <h3 style={styles.cardTitle}>Vocal Analysis Summary</h3>
+                <div style={styles.vocalSummaryContent}>
+                  {safeString(reportData.speechAnalysis?.vocal_summary, 'Vocal analysis summary not available.')}
                 </div>
               </div>
-            </div>
-
-          </div>
-
-          {/* Professional Benchmark Comparison */}
-          <div style={styles.benchmarkCard}>
-            <h3 style={styles.cardTitle}>Professional Speaker Comparison</h3>
-            <div style={styles.benchmarkContent}>
-              <div style={styles.benchmarkItem}>
-                <span style={styles.benchmarkLabel}>Your Overall Score:</span>
-                <span style={styles.benchmarkValue}>
-                  {safeScore(reportData.vocalDynamics.overall_dynamics_score, 0)}/100
-                </span>
-              </div>
-              <div style={styles.benchmarkItem}>
-                <span style={styles.benchmarkLabel}>Professional Benchmark:</span>
-                <span style={styles.benchmarkValue}>85+</span>
-              </div>
-              <div style={styles.benchmarkItem}>
-                <span style={styles.benchmarkLabel}>TED Talk Average:</span>
-                <span style={styles.benchmarkValue}>78</span>
-              </div>
-              <div style={styles.benchmarkItem}>
-                <span style={styles.benchmarkLabel}>Corporate Presentation Average:</span>
-                <span style={styles.benchmarkValue}>65</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Vocal Summary */}
-          <div style={styles.vocalSummaryCard}>
-            <h3 style={styles.cardTitle}>Vocal Analysis Summary</h3>
-            <div style={styles.vocalSummaryContent}>
-              {safeString(reportData.speechAnalysis?.vocal_summary, 'Vocal analysis summary not available.')}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Enhanced Speech Section */}
-      {enhancedTranscript && (
-        <div style={styles.enhancementCard}>
-          <h3 style={styles.cardTitle}>AI-Enhanced Speech</h3>
-          <div style={styles.feedback}>
-            {safeString(enhancement.summary, 'Your speech has been enhanced for better presentation delivery.')}
-          </div>
-          
-          {/* Enhanced Audio Player */}
-          {enhancedAudioUrl && (
-            <div style={styles.enhancementHighlight}>
-              <h4 style={{color: '#2d5a2d', marginBottom: '1rem', fontSize: '1.1rem'}}>
-                Listen to Your Enhanced Speech
-              </h4>
-              <div style={styles.audioControls}>
-                <button
-                  style={{...styles.playButton, ...styles.playButtonEnhanced}}
-                  onClick={handlePlayEnhanced}
-                >
-                  {isPlayingEnhanced ? '⏸️ Pause Enhanced' : 'Play Enhanced Speech'}
-                </button>
-                
-                <button
-                  style={{...styles.playButton, ...styles.downloadButton}}
-                  onClick={handleDownload}
-                >
-                  Download Enhanced Audio
-                </button>
-              </div>
-              
-              {audioError && (
-                <div style={styles.errorMessage}>{audioError}</div>
-              )}
-              
-              {/* Enhanced Audio Element */}
-              <audio
-                ref={enhancedAudioRef}
-                controls
-                style={{width: '100%', marginTop: '1rem'}}
-                onPlay={() => setIsPlayingEnhanced(true)}
-                onPause={() => setIsPlayingEnhanced(false)}
-                onEnded={() => setIsPlayingEnhanced(false)}
-                onError={() => setAudioError('Audio file could not be loaded. Please try again later.')}
-              >
-                <source src={`${BASE_URL}/${enhancedAudioUrl}`} type="audio/mpeg" />
-                Your browser does not support the audio element.
-              </audio>
             </div>
           )}
-          
-          {/* Key Changes Made */}
-          {keyChanges.length > 0 && (
-            <div style={styles.improvementsList}>
-              <h4 style={{margin: '0 0 1rem 0', color: '#5D2E8C'}}>Key Improvements Made:</h4>
-              {keyChanges.map((change, index) => (
-                <div key={index} style={styles.improvementItem}>
-                  <span style={{color: '#28a745', fontSize: '1.2rem', fontWeight: 'bold'}}>✓</span>
-                  <span>{safeString(change, 'Improvement made')}</span>
+
+          {/* Enhanced Speech Section */}
+          {enhancedTranscript && (
+            <div style={styles.enhancementCard}>
+              <h3 style={styles.cardTitle}>AI-Enhanced Speech</h3>
+              <div style={styles.feedback}>
+                {safeString(enhancement.summary, 'Your speech has been enhanced for better presentation delivery.')}
+              </div>
+
+              {/* Enhanced Audio Player */}
+              {enhancedAudioUrl && (
+                <div style={styles.enhancementHighlight}>
+                  <h4 style={{ color: '#2d5a2d', marginBottom: '1rem', fontSize: '1.1rem' }}>
+                    Listen to Your Enhanced Speech
+                  </h4>
+                  <div style={styles.audioControls}>
+                    <button
+                      style={{ ...styles.playButton, ...styles.playButtonEnhanced }}
+                      onClick={handlePlayEnhanced}
+                    >
+                      {isPlayingEnhanced ? '⏸️ Pause Enhanced' : 'Play Enhanced Speech'}
+                    </button>
+
+                    <button
+                      style={{ ...styles.playButton, ...styles.downloadButton }}
+                      onClick={handleDownload}
+                    >
+                      Download Enhanced Audio
+                    </button>
+                  </div>
+
+                  {audioError && (
+                    <div style={styles.errorMessage}>{audioError}</div>
+                  )}
+
+                  {/* Enhanced Audio Element */}
+                  <audio
+                    ref={enhancedAudioRef}
+                    controls
+                    style={{ width: '100%', marginTop: '1rem' }}
+                    onPlay={() => setIsPlayingEnhanced(true)}
+                    onPause={() => setIsPlayingEnhanced(false)}
+                    onEnded={() => setIsPlayingEnhanced(false)}
+                    onError={() => setAudioError('Audio file could not be loaded. Please try again later.')}
+                  >
+                    <source src={`${BASE_URL}/${enhancedAudioUrl}`} type="audio/mpeg" />
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
+              )}
+
+              {/* Key Changes Made */}
+              {keyChanges.length > 0 && (
+                <div style={styles.improvementsList}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#5D2E8C' }}>Key Improvements Made:</h4>
+                  {keyChanges.map((change, index) => (
+                    <div key={index} style={styles.improvementItem}>
+                      <span style={{ color: '#28a745', fontSize: '1.2rem', fontWeight: 'bold' }}>✓</span>
+                      <span>{safeString(change, 'Improvement made')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Speaking Tips */}
+          {speakingTips.length > 0 && (
+            <div style={styles.speakingTipsCard}>
+              <h3 style={{ color: '#856404', marginBottom: '1rem', fontSize: '1.4rem' }}>
+                Personalised Speaking Tips
+              </h3>
+              {speakingTips.map((tip, index) => (
+                <div key={index} style={styles.tipItem}>
+                  <span style={{ fontSize: '1.2rem' }}>💡 </span>
+                  <span>{safeString(tip, 'Speaking tip')}</span>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Speaking Tips */}
-      {speakingTips.length > 0 && (
-        <div style={styles.speakingTipsCard}>
-          <h3 style={{color: '#856404', marginBottom: '1rem', fontSize: '1.4rem'}}>
-            Personalised Speaking Tips
-          </h3>
-          {speakingTips.map((tip, index) => (
-            <div key={index} style={styles.tipItem}>
-              <span style={{fontSize: '1.2rem'}}>💡 </span>
-              <span>{safeString(tip, 'Speaking tip')}</span>
+          {/* View Toggle */}
+          {enhancedTranscript && renderViewToggle()}
+
+          {/* Transcript Comparison */}
+          <div class="transcript-card" style={styles.transcriptGrid}>
+            {(currentView === 'original' || currentView === 'both') && (
+              <div style={styles.transcriptCard}>
+                <div style={styles.cardTitle}>Original Transcript</div>
+                <div style={styles.transcript}>{transcriptSegments}</div>
+              </div>
+            )}
+
+            {enhancedTranscript && (currentView === 'enhanced' || currentView === 'both') && (
+              <div style={styles.transcriptCard}>
+                <div style={styles.cardTitle}>Enhanced Transcript</div>
+                <div style={styles.transcript}>{enhancedTranscript}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Presentation Metrics */}
+          <div style={styles.presentationMetricsGrid}>
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <span style={styles.metricIcon}>🎯</span>
+                <span style={styles.metricTitle}>Clarity Analysis</span>
+              </div>
+              <div style={styles.feedback}>{clarityFeedback}</div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* View Toggle */}
-      {enhancedTranscript && renderViewToggle()}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <span style={styles.metricIcon}>⏱️</span>
+                <span style={styles.metricTitle}>Pace Analysis</span>
+              </div>
+              <div style={styles.feedback}>{paceFeedback}</div>
+            </div>
 
-      {/* Transcript Comparison */}
-      <div style={styles.transcriptGrid}>
-        {(currentView === 'original' || currentView === 'both') && (
-          <div style={styles.transcriptCard}>
-            <div style={styles.cardTitle}>Original Transcript</div>
-            <div style={styles.transcript}>{transcriptSegments}</div>
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <span style={styles.metricIcon}>💪</span>
+                <span style={styles.metricTitle}>Confidence Analysis</span>
+              </div>
+              <div style={styles.feedback}>{confidenceFeedback}</div>
+            </div>
+
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <span style={styles.metricIcon}>✨</span>
+                <span style={styles.metricTitle}>Engagement Analysis</span>
+              </div>
+              <div style={styles.feedback}>{engagementFeedback}</div>
+            </div>
           </div>
-        )}
-
-        {enhancedTranscript && (currentView === 'enhanced' || currentView === 'both') && (
-          <div style={styles.transcriptCard}>
-            <div style={styles.cardTitle}>Enhanced Transcript</div>
-            <div style={styles.transcript}>{enhancedTranscript}</div>
-          </div>
-        )}
-      </div>
-
-      {/* Detailed Presentation Metrics */}
-      <div style={styles.presentationMetricsGrid}>
-        <div style={styles.metricCard}>
-          <div style={styles.metricHeader}>
-            <span style={styles.metricIcon}>🎯</span>
-            <span style={styles.metricTitle}>Clarity Analysis</span>
-          </div>
-          <div style={styles.feedback}>{clarityFeedback}</div>
-        </div>
-
-        <div style={styles.metricCard}>
-          <div style={styles.metricHeader}>
-            <span style={styles.metricIcon}>⏱️</span>
-            <span style={styles.metricTitle}>Pace Analysis</span>
-          </div>
-          <div style={styles.feedback}>{paceFeedback}</div>
-        </div>
-
-        <div style={styles.metricCard}>
-          <div style={styles.metricHeader}>
-            <span style={styles.metricIcon}>💪</span>
-            <span style={styles.metricTitle}>Confidence Analysis</span>
-          </div>
-          <div style={styles.feedback}>{confidenceFeedback}</div>
-        </div>
-
-        <div style={styles.metricCard}>
-          <div style={styles.metricHeader}>
-            <span style={styles.metricIcon}>✨</span>
-            <span style={styles.metricTitle}>Engagement Analysis</span>
-          </div>
-          <div style={styles.feedback}>{engagementFeedback}</div>
-        </div>
-      </div>
         </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-              <button className="download-button" onClick={handlePrint}>
-                <FaDownload />
-                Download Report
-              </button>
-            </div>
+        <button className="download-button" onClick={handlePrint}>
+          <FaDownload />
+          Download Report
+        </button>
+      </div>
 
-            <style>{`
+      <style>{`
 
 .download-button {
   background-color: #5D2E8C;
@@ -1628,11 +1678,14 @@ export default function AudioReportPage() {
   transform: scale(0.95); /* slightly shrink on click */
 }
 
-
+@media (max-width: 768px) {
+  h1 { font-size: 22px !important; }
+  .recharts-polar-angle-axis-tick-value { font-size: 9px !important; }
+}
 
 `}</style>
     </div>
-    
+
   );
 }
 
