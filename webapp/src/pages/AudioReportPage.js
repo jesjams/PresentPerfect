@@ -8,7 +8,7 @@ import {
   Radar,
   Tooltip
 } from 'recharts';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import { useAuth } from '../context/AuthContext';
 import { FaDownload } from 'react-icons/fa';
 
@@ -654,27 +654,37 @@ export default function AudioReportPage() {
 
   const [isExporting, setIsExporting] = useState(false);
   const reportRef = useRef(null);
-  const handlePrint = async () => {
-    setIsExporting(true); // Begin export mode
-    await new Promise(resolve => setTimeout(resolve, 50));
+const handlePrint = async () => {
+  if (!reportRef.current) return;
 
-    const element = reportRef.current;
-    if (!element) return;
+  setIsExporting(true);
 
-    const canvas = await html2canvas(element, {
-      scale: 1,
-      useCORS: true,
+  // wait until icon / emoji fonts are ready
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
+
+  // pause CSS animations while capturing
+  reportRef.current.classList.add('screenshot-mode');
+
+  try {
+    const dataUrl = await toPng(reportRef.current, {
+      //  device-pixel-ratio aware ≈ crisp on Retina
+      pixelRatio: window.devicePixelRatio || 2,
+      cacheBust: true          // forces re-render, avoids stale images
     });
 
-    const image = canvas.toDataURL('image/png');
-
     const link = document.createElement('a');
-    link.href = image;
+    link.href = dataUrl;
     link.download = 'Performance_Report.png';
     link.click();
-
+  } catch (err) {
+    console.error('Export failed:', err);
+  } finally {
+    reportRef.current.classList.remove('screenshot-mode');
     setIsExporting(false);
-  };
+  }
+};
 
   // Helper functions for vocal improvement tips
   const getPitchImprovementTip = (score) => {
@@ -796,7 +806,7 @@ export default function AudioReportPage() {
   if (isLoading || !reportData) {
     return (
       <div style={styles.container}>
-        <div ref={reportRef} style={styles.reportBoxOuter}>
+        <div style={styles.reportBoxOuter}>
           <div style={styles.reportBoxInner}>
             <div style={styles.header}>
               <h1 style={styles.title}>Processing Audio Analysis</h1>
@@ -828,7 +838,7 @@ export default function AudioReportPage() {
                 <div style={{
                   width: '100%',
                   height: '1.2rem',
-                  backgroundColor: 'rgba(93, 46, 140, 0.1)',
+      backgroundColor: 'rgba(255,255,255,0.3)',
                   borderRadius: '0.6rem',
                   overflow: 'hidden',
                   marginBottom: '1rem'
@@ -938,7 +948,7 @@ export default function AudioReportPage() {
   const speakingTips = safeArray(enhancement.speaking_tips);
 
   // Safe speech analysis values
-  const wordCount = safeNumber(speechAnalysis.word_count, 0);
+  //const wordCount = safeNumber(speechAnalysis.word_count, 0);
   const speakingRate = safeNumber(speechAnalysis.speaking_rate, 0);
 
   const radarData = [
@@ -1086,7 +1096,7 @@ export default function AudioReportPage() {
         `}
       </style>
 
-      <div style={styles.reportBoxOuter}>
+      <div ref={reportRef} style={styles.reportBoxOuter}>
         <div style={styles.reportBoxInner}>
           <div style={styles.header}>
             <h1 style={styles.title}>Here Are Your Results!</h1>
@@ -1683,7 +1693,12 @@ export default function AudioReportPage() {
   h1 { font-size: 22px !important; }
   .recharts-polar-angle-axis-tick-value { font-size: 9px !important; }
 }
-
+.screenshot-mode *,
+.screenshot-mode *::before,
+.screenshot-mode *::after {
+  animation: none !important;
+  transition: none !important;
+}
 `}</style>
     </div>
 

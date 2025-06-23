@@ -143,7 +143,7 @@ const endpoint = isAudio
       showToast('Upload failed');
       setUploading(false);
     }
-  }, []);
+  }, [user]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
