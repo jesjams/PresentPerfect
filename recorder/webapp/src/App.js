@@ -636,7 +636,7 @@ const RecordingApp = () => {
       )}
 
       <div style={styles.header}>
-        <h1 style={styles.title}>🎤 Presentation Recorder</h1>
+        <h1 style={styles.title}>Presentation Recorder</h1>
         <p style={styles.subtitle}>Practice your presentation skills with AI-powered analysis</p>
       </div>
 
@@ -760,9 +760,6 @@ const RecordingApp = () => {
                     autoPlay
                     controls={false}
                   />
-                  <p style={{fontSize: '0.8rem', color: '#666', marginTop: '0.5rem'}}>
-                    Preview may not work on all mobile browsers - recording still works fine!
-                  </p>
                 </div>
               )}
               
