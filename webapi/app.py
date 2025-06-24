@@ -270,44 +270,75 @@ def get_feedback_payload(
     global user
     # Build system + user messages
     system = (
-        f"You are a supportive, expert presentation coach helping {user} improve their delivery style. Your response MUST be a **single JSON object** following the exact structure of the PresentationFeedback schema below—no extra commentary, formatting, or explanation.\n\n"
-        "...(same content omitted for brevity)..."
+    f"You are a supportive, expert presentation coach helping {user} improve their delivery style. Your response MUST be a **single JSON object** following the exact structure of the PresentationFeedback schema below—no extra commentary, formatting, or explanation.\n\n"
+    "Your role is to guide the user like a personal tutor: give encouragement where deserved and offer constructive, practical suggestions they can act on.\n\n"
+    "PresentationFeedback schema:\n"
+    "{\n"
+    "  'speechImprovements\": string,\n"
+    "  'speechScore\":       integer,   // 1-100\n"
+    "  'emotionScore\":      integer,   // 1-100\n"
+    "  'emotionText\":       string,\n"
+    "  'gazeScore\":         integer,   // 1-100\n"
+    "  'gazeText\":          string,\n"
+    "  'movementScore\":     integer,   // 1-100\n"
+    "  'movementText\":      string,\n"
+    "  'shoulderScore\":     integer,   // 1-100\n"
+    "  'shoulderText\":      string,\n"
+    "  'handsScore\":        integer,   // 1-100\n"
+    "  'gestureText\":       string,\n"
+    "  'overallScore\":      integer,   // 1-100  (average of the five sub-scores)\n"
+    "  'overallSummary':    string\n"
+    "}\n\n"
+    "INSTRUCTIONS\n"
+    "1. Read the transcript to understand the presentation’s intent and clarity.\n"
+    "2. Review the analytics timeline to assess how delivery supports that intent.\n"
+    "3. Fill in all fields of the PresentationFeedback in with the text section of each score offering improvements for that sppecific part JSON:\n"
+    "   • *speechScore* – Structure, clarity, and flow. Provide targeted improvement tips.\n"
+    "   • *emotionScore* – Did the speaker’s facial expression match their content? Be specific.\n"
+    "   • *gazeScore* – Evaluate eye contact. \n"
+    "     → If gaze is mostly down or up, consider whether the audience or camera might be positioned low/high and adjust your feedback accordingly (e.g., Ted Talks, seated audiences).\n"
+    "   • *movementScore* – How well did the presenter use the space? Encourage confident, purposeful movement.\n"
+    "   • *shoulderScore* – Reflects posture confidence. eg. Explain if tilted shoulders may reduce presence.\n"
+    "   • *handsScore* – Did gestures support the message? Comment on gesture use and pacing.\n"
+    "4. Make *overallScore* the average of the six sub-scores like\n"
+    "5. In *overallSummary*, kindly summarise 2–3 key things the speaker should focus on next time.  write it like a story, keep it personal to the user and the content and speak to the user like an actual coach.\n\n"
+    "Be encouraging, helpful, and specific—like a coach who wants them to succeed.\n\n"
+    "Return ONLY the JSON object that conforms to the schema above."
     )
 
     user = f"""
     Below are (1) second‑by‑second analytics extracted from the video and (2) the full speech transcript.
-
+    
     -----------------------------------------------
     ANALYTICS  (one entry per second)
-    • Emotion compiled by transcript speaking time : {dom_emotion}
-    • Gaze_sec    : {dom_gaze}
-    • Move_avg_sec: {move_avg}
-    • Shoulder_sec: {dom_shoulder}
-    • Hands_sec   : {dom_hands}
+    • Emotion compiled by transcript speaking time : {dom_emotion}      // dominant facial emotion
+    • Gaze_sec    : {dom_gaze}         // gaze region: centre, up, down, left, right, upleft, upright, downleft, downright
+    • Move_avg_sec: {move_avg}         // X‑axis position 0‑10 (0 = far left, 10 = far right)
+    • Shoulder_sec: {dom_shoulder}     // posture flag: straight / tilted
+    • Hands_sec   : {dom_hands}        // gesture flag: gesturing / hands at side
     -----------------------------------------------
-
+    
     TRANSCRIPT
     {segments}
 
     Respond with ONLY a JSON object matching the PresentationFeedback schema.
     """
 
-    # Try twice before raising
     for attempt in range(2):
-        try:
-            completion = client.beta.chat.completions.parse(
-                model=os.getenv("OPENAI_MODEL"),
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user",   "content": user}
-                ],
-                response_format=PresentationFeedback
-            )
-            feedback: PresentationFeedback = completion.choices[0].message.parsed
-            return feedback
-        except Exception as e:
-            if attempt == 1:
-                raise RuntimeError(f"Failed to get PresentationFeedback after 2 attempts: {e}")
+            try:
+                completion = client.beta.chat.completions.parse(
+                    model=os.getenv("OPENAI_MODEL"),
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user",   "content": user}
+                    ],
+                    response_format=PresentationFeedback
+                )
+                feedback: PresentationFeedback = completion.choices[0].message.parsed
+                return feedback
+            except Exception as e:
+                if attempt == 1:
+                    raise RuntimeError(f"Failed to get PresentationFeedback after 2 attempts: {e}")
 
 #Batch-aware detector functions
 def emotion_batch(batch_frames, W, H, batch_secs):
