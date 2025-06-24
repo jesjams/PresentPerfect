@@ -1822,6 +1822,13 @@ def process_comprehensive_audio_for_video(temp_path, report_id):
     Emits results specifically for video-to-audio analysis
     """
     try:
+                # Progress tracking
+        socketio.emit('video-audio-analysis-update', {
+            'message': 'Starting comprehensive audio analysis from video...',
+            'progress': 10,
+            'stage': 'initialization',
+            'reportId': report_id
+        })
         # Normalize path for Windows compatibility
         temp_path = os.path.normpath(temp_path)
         print(f"[INFO] Processing extracted audio file: {temp_path}")
@@ -1847,13 +1854,7 @@ def process_comprehensive_audio_for_video(temp_path, report_id):
             
         print(f"[INFO] Extracted audio file verified: {file_size} bytes")
         
-        # Progress tracking
-        socketio.emit('video-audio-analysis-update', {
-            'message': 'Starting comprehensive audio analysis from video...',
-            'progress': 10,
-            'stage': 'initialization',
-            'reportId': report_id
-        })
+
         
         # Step 1: Run metrics, transcription, and vocal dynamics in parallel
         socketio.emit('video-audio-analysis-update', {

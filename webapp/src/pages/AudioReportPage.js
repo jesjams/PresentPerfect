@@ -806,7 +806,7 @@ const handlePrint = async () => {
         <div style={styles.reportBoxOuter}>
           <div style={styles.reportBoxInner}>
             <div style={styles.header}>
-              <h1 style={styles.title}>Processing Audio Analysis</h1>
+              <h1 style={styles.title}>Processing Audio</h1>
               <p style={styles.subtitle}>
                 {dataSource === 'video'
                   ? 'Extracting and analyzing audio from your video...'
