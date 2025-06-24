@@ -49,6 +49,8 @@ export default function ReportPage() {
     const canvas = await html2canvas(element, {
       scale: 1,
       useCORS: true,
+        width: 1050,      
+  windowWidth: 1100,
     });
 
     const image = canvas.toDataURL('image/png');

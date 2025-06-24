@@ -668,7 +668,9 @@ const handlePrint = async () => {
     try {
       const canvas = await html2canvas(reportRef.current, {
         scale: 1,
-        useCORS: true
+        useCORS: true,
+          width: 1050,       // 👈 force render width
+  windowWidth: 1100,
       });
       const img  = canvas.toDataURL('image/png');
       const a    = document.createElement('a');
