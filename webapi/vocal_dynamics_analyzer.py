@@ -528,47 +528,48 @@ import scipy.stats
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Any
+from whisper_helper import robust_load
 
 def analyze_vocal_dynamics(audio_path: str) -> Dict[str, Any]:
     """
-    Advanced vocal dynamics analysis for presentation coaching
-    Returns sophisticated metrics about pitch variation, volume dynamics, rhythm, and pauses
+    Advanced vocal-dynamics analysis for presentation coaching.
+    Returns detailed metrics about pitch variation, volume, rhythm, and pauses.
     """
     try:
-        # Load audio with higher sample rate for better analysis
-        y, sr = librosa.load(audio_path, sr=22050)
+        # Always load with the unified loader ➜ handles m4a → wav, resampling, mono
+        y, sr = robust_load(audio_path, sr=22_050)     # ← 🔧 changed line
         duration = len(y) / sr
-        
+
         # 1. PITCH VARIATION ANALYSIS
         pitch_metrics = analyze_pitch_variation(y, sr)
-        
-        # 2. VOLUME DYNAMICS ANALYSIS  
+
+        # 2. VOLUME DYNAMICS ANALYSIS
         volume_metrics = analyze_volume_dynamics(y, sr)
-        
+
         # 3. SPEAKING RHYTHM ANALYSIS
         rhythm_metrics = analyze_speaking_rhythm(y, sr)
-        
+
         # 4. STRATEGIC PAUSE ANALYSIS
         pause_metrics = analyze_pauses(y, sr)
-        
-        # 5. OVERALL VOCAL DYNAMICS SCORE
+
+        # 5. OVERALL VOCAL-DYNAMICS SCORE
         overall_score = calculate_vocal_dynamics_score(
             pitch_metrics, volume_metrics, rhythm_metrics, pause_metrics
         )
-        
+
         return {
-            'duration': duration,
-            'pitch_dynamics': pitch_metrics,
-            'volume_dynamics': volume_metrics,
-            'rhythm_analysis': rhythm_metrics,
-            'pause_analysis': pause_metrics,
-            'overall_dynamics_score': overall_score,
-            'vocal_health_indicators': analyze_vocal_health(y, sr),
-            'presentation_readiness': calculate_presentation_readiness(
+            "duration": duration,
+            "pitch_dynamics": pitch_metrics,
+            "volume_dynamics": volume_metrics,
+            "rhythm_analysis": rhythm_metrics,
+            "pause_analysis": pause_metrics,
+            "overall_dynamics_score": overall_score,
+            "vocal_health_indicators": analyze_vocal_health(y, sr),
+            "presentation_readiness": calculate_presentation_readiness(
                 pitch_metrics, volume_metrics, rhythm_metrics, pause_metrics
-            )
+            ),
         }
-        
+
     except Exception as e:
         print(f"[ERROR] Vocal dynamics analysis failed: {e}")
         return None

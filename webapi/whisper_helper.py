@@ -17,35 +17,60 @@ import torch
 import librosa
 import soundfile as sf
 import whisper
-
+import subprocess, tempfile, os
+from pathlib import Path
+from typing import Tuple
 # ----------------------------- configuration -----------------------------
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 TARGET_SR = 22_050   # common sample rate for feature extraction
+FFMPEG_EXE = "ffmpeg"
 # -------------------------------------------------------------------------
 
+def _convert_to_wav(source: str, sr: int = TARGET_SR) -> str:
+    """
+    Convert `source` to mono WAV at `sr` Hz via FFmpeg, return new path.
+    If source is already WAV/FLAC/OGG (valid for libsndfile) it is returned
+    unchanged.
+    """
+    ext = Path(source).suffix.lower()
+    if ext not in {".m4a", ".mp4", ".aac", ".mp3", ".wma"}:
+        return source  # nothing to do
 
+    tmp_path = Path(tempfile.gettempdir()) / (Path(source).stem + "_tmp.wav")
+    cmd = [
+        FFMPEG_EXE, "-y", "-i", source,  # input
+        "-ac", "1",                      # mono
+        "-ar", str(sr),                  # sample rate
+        tmp_path
+    ]
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            "FFmpeg not found – install it or place on PATH") from e
+    return str(tmp_path)
 # -------------------------------------------------------------------------
 # Robust audio loader
 # -------------------------------------------------------------------------
-def robust_load(path: str, sr: int = TARGET_SR):
+def robust_load(path: str, sr: int = TARGET_SR) -> Tuple[np.ndarray, int]:
     """
-    Try to read audio with soundfile (fast C backend) first.
-    Fall back to librosa/audioread if that fails.
-    Always returns mono float32 PCM at `sr`.
+    Returns mono float32 PCM at `sr` Hz.
+    Uses PySoundFile (libsndfile) where possible and falls back to
+    librosa+audioread when libsndfile cannot handle the codec.
     """
+    path = _convert_to_wav(path, sr)  # ensure libsndfile-friendly
+
     try:
         y, native_sr = sf.read(path, dtype="float32", always_2d=False)
         if native_sr != sr:
             y = librosa.resample(y, orig_sr=native_sr, target_sr=sr)
     except Exception as err:
-        warnings.warn(
-            f"SoundFile read failed ({err}); falling back to audioread",
-            RuntimeWarning,
-        )
-        # librosa.load handles resampling + mono conversion
+        # libs/codec not supported – fall back to audioread
+        warnings.warn(f"SoundFile read failed ({err}); using audioread",
+                      RuntimeWarning)
         y, _ = librosa.load(path, sr=sr, mono=True, res_type="kaiser_fast")
     return y, sr
-
 
 # -------------------------------------------------------------------------
 # Feature extraction for gender detection
