@@ -14,7 +14,7 @@ import html2canvas from 'html2canvas';
 import { useAuth } from '../context/AuthContext';
 import { FaDownload, FaMicrophone } from 'react-icons/fa';
 import { useRef, useState } from 'react';
-
+import QRCode from 'react-qr-code';
 import { Tooltip as RTTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 
@@ -37,30 +37,35 @@ export default function ReportPage() {
   });
   const [isExporting, setIsExporting] = useState(false);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+  const [modalOpen,   setModalOpen]     = useState(false);
+   const [imgDataUrl,  setImgDataUrl]    = useState(''); 
   const reportRef = useRef(null);
 
   const handlePrint = async () => {
-    setIsExporting(true); // Begin export mode
-    await new Promise(resolve => setTimeout(resolve, 50));
+    setIsExporting(true);
 
-    const element = reportRef.current;
-    if (!element) return;
+    // allow any “export” CSS tweaks to take effect
+    await new Promise(r => setTimeout(r, 50));
 
-    const canvas = await html2canvas(element, {
+    const canvas = await html2canvas(reportRef.current, {
       scale: 1,
       useCORS: true,
-        width: 1050,      
-  windowWidth: 1100,
+      width: 1050,
+      windowWidth: 1100
     });
 
-    const image = canvas.toDataURL('image/png');
+    const dataUrl = canvas.toDataURL('image/png');
+    setImgDataUrl(dataUrl);   // give it to the modal
+    setModalOpen(true);       // show modal
+    setIsExporting(false);
+  };
 
+  /* --- download from the modal --- */
+  const downloadNow = () => {
     const link = document.createElement('a');
-    link.href = image;
+    link.href     = imgDataUrl;
     link.download = 'Performance_Report.png';
     link.click();
-
-    setIsExporting(false);
   };
 
   const handleAudioAnalysis = async () => {
@@ -574,7 +579,43 @@ export default function ReportPage() {
     },
     barLabel: {
       color: '#555'
-    }
+    },
+    backdrop: {
+    position: 'fixed', inset: 0,
+    background: 'rgba(0,0,0,.45)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 9999
+  },
+  modal: {
+    background: '#fff',
+    borderRadius: '1rem',
+    padding: '2rem',
+    width: 'min(90vw, 400px)',
+    textAlign: 'center',
+    boxShadow: '0 8px 30px rgba(0,0,0,.2)'
+  },
+  qrWrap: {
+    margin: '0 auto 1rem auto',
+    width: 160, height: 160
+  },
+  dlBtn: {
+    padding: '.6rem 1.2rem',
+    borderRadius: '.5rem',
+    border: 'none',
+    fontWeight: 600,
+    cursor: 'pointer',
+    background: '#5D2E8C', /* keep your brand colour */
+    color: '#fff',
+    marginRight: '.5rem'
+  },
+  closeBtn: {
+    padding: '.6rem 1.2rem',
+    borderRadius: '.5rem',
+    border: '1px solid #ccc',
+    background: '#fff',
+    cursor: 'pointer',
+    color: '#333'
+  }
   };
 
 
@@ -1049,6 +1090,32 @@ export default function ReportPage() {
           Download Report
         </button>
       </div>
+      {/* --- MODAL --- */}
+      {modalOpen && (
+        <div style={styles.backdrop} onClick={() => setModalOpen(false)}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: '0 0 1rem 0' }}>Share & Download</h2>
+
+            {/* QR code preview */}
+            {imgDataUrl && (
+              <div style={styles.qrWrap}>
+                <QRCode value={"google.com"} size={160} />
+              </div>
+            )}
+
+            <p style={{ fontSize: '.9rem', marginBottom: '1.5rem' }}>
+              Scan on another device or click below to save the file.
+            </p>
+
+            <button className="dl-btn" style={styles.dlBtn} onClick={downloadNow}>
+              Download now
+            </button>
+            <button className="close-btn" style={styles.closeBtn} onClick={() => setModalOpen(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <style>{`
 
 .breakdown-chart-pair {
@@ -1097,7 +1164,22 @@ export default function ReportPage() {
           button { width: 100% !important; justify-content: center !important; }
         }
 
+.dl-btn,
+.close-btn {
+  transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
 
+/* Download button hover */
+.dl-btn:hover {
+  background: #4b2175;           /* slightly darker brand colour */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+
+/* Close button hover */
+.close-btn:hover {
+  background: #f5f5f5;
+}
 .scroll-chart {
   scrollbar-color: #5D2E8C transparent; /* Firefox */
   scrollbar-width: auto;

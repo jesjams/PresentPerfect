@@ -11,7 +11,7 @@ import {
 import html2canvas from 'html2canvas';    
 import { useAuth } from '../context/AuthContext';
 import { FaDownload } from 'react-icons/fa';
-
+import QRCode from 'react-qr-code';
 export default function AudioReportPage() {
   const location = useLocation();
   const [reportData, setReportData] = useState(location.state?.reportData || null);
@@ -20,7 +20,8 @@ export default function AudioReportPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Initializing analysis...');
   const [analysisError, setAnalysisError] = useState(null);
-
+  const [modalOpen,   setModalOpen]     = useState(false);
+   const [imgDataUrl,  setImgDataUrl]    = useState(''); 
   const { user } = useAuth();
   const username = user?.email?.split('@')[0] || 'Guest';
 
@@ -652,38 +653,86 @@ export default function AudioReportPage() {
     animation: 'candy 1s linear infinite',
     transition: 'width 1s ease-out',
   },
+  backdrop: {
+    position: 'fixed', inset: 0,
+    background: 'rgba(0,0,0,.45)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 9999
+  },
+  modal: {
+    background: '#fff',
+    borderRadius: '1rem',
+    padding: '2rem',
+    width: 'min(90vw, 400px)',
+    textAlign: 'center',
+    boxShadow: '0 8px 30px rgba(0,0,0,.2)'
+  },
+  qrWrap: {
+    margin: '0 auto 1rem auto',
+    width: 160, height: 160
+  },
+  dlBtn: {
+    padding: '.6rem 1.2rem',
+    borderRadius: '.5rem',
+    border: 'none',
+    fontWeight: 600,
+    cursor: 'pointer',
+    background: '#5D2E8C', /* keep your brand colour */
+    color: '#fff',
+    marginRight: '.5rem'
+  },
+  closeBtn: {
+    padding: '.6rem 1.2rem',
+    borderRadius: '.5rem',
+    border: '1px solid #ccc',
+    background: '#fff',
+    cursor: 'pointer',
+    color: '#333'
+  },
   };
 
   const [isExporting, setIsExporting] = useState(false);       
   const reportRef   = useRef(null);
+
+
 const handlePrint = async () => {
-    if (!reportRef.current) return;
+  if (!reportRef.current) return;
 
-    setIsExporting(true);                          // 1️⃣ flag on
-    // give React a tick to paint the “export mode” CSS
-    await new Promise(r => setTimeout(r, 50));
+  setIsExporting(true);                       // 1️⃣ flag on
+  await new Promise(r => setTimeout(r, 50));  // let React paint any “export” CSS
 
-    reportRef.current.classList.add('screenshot-mode');
+  reportRef.current.classList.add('screenshot-mode');
 
-    try {
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 1,
-        useCORS: true,
-          width: 1050,       // 👈 force render width
-  windowWidth: 1100,
-      });
-      const img  = canvas.toDataURL('image/png');
-      const a    = document.createElement('a');
-      a.href      = img;
-      a.download  = 'Performance_Report.png';
-      a.click();
-    } catch (err) {
-      console.error('Export failed:', err);
-    } finally {
-      reportRef.current.classList.remove('screenshot-mode');
-      setIsExporting(false);                       // 2️⃣ flag off
-    }
-  };
+  try {
+    const canvas = await html2canvas(reportRef.current, {
+      scale       : 1,
+      useCORS     : true,
+      width       : 1050,
+      windowWidth : 1100
+    });
+
+    /* instead of auto-download → push to modal */
+    const dataUrl = canvas.toDataURL('image/png');
+    setImgDataUrl(dataUrl);
+    setModalOpen(true);                       // open QR/Download modal
+  } catch (err) {
+    console.error('Export failed:', err);
+  } finally {
+    reportRef.current.classList.remove('screenshot-mode');
+    setIsExporting(false);                    // 2️⃣ flag off
+  }
+};
+
+/* -------------------
+   download from modal
+------------------- */
+const downloadNow = () => {
+  if (!imgDataUrl) return;
+  const a   = document.createElement('a');
+  a.href    = imgDataUrl;
+  a.download= 'Performance_Report.png';
+  a.click();
+};
 
   // Helper functions for vocal improvement tips
   const getPitchImprovementTip = (score) => {
@@ -1661,7 +1710,32 @@ const handlePrint = async () => {
 <FaDownload/>{isExporting ? 'Generating…' : 'Download Report'}
         </button>
       </div>
+      {/* --- MODAL --- */}
+      {modalOpen && (
+        <div style={styles.backdrop} onClick={() => setModalOpen(false)}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: '0 0 1rem 0' }}>Share & Download</h2>
 
+            {/* QR code preview */}
+            {imgDataUrl && (
+              <div style={styles.qrWrap}>
+                <QRCode value={"google.com"} size={160} />
+              </div>
+            )}
+
+            <p style={{ fontSize: '.9rem', marginBottom: '1.5rem' }}>
+              Scan on another device or click below to save the file.
+            </p>
+
+            <button className="dl-btn" style={styles.dlBtn} onClick={downloadNow}>
+              Download now
+            </button>
+            <button className="close-btn" style={styles.closeBtn} onClick={() => setModalOpen(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <style>{`
 
 .download-button {
@@ -1685,6 +1759,23 @@ const handlePrint = async () => {
 
 .download-button:active {
   transform: scale(0.95); /* slightly shrink on click */
+}
+  
+.dl-btn,
+.close-btn {
+  transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Download button hover */
+.dl-btn:hover {
+  background: #4b2175;           /* slightly darker brand colour */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+
+/* Close button hover */
+.close-btn:hover {
+  background: #f5f5f5;
 }
 
 @media (max-width: 768px) {
