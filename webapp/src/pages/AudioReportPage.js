@@ -8,7 +8,7 @@ import {
   Radar,
   Tooltip
 } from 'recharts';
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas';    
 import { useAuth } from '../context/AuthContext';
 import { FaDownload } from 'react-icons/fa';
 
@@ -49,6 +49,7 @@ export default function AudioReportPage() {
   const enhancedAudioRef = useRef(null);
   const [audioError, setAudioError] = useState('');
   const BASE_URL = process.env.REACT_APP_API_HOST;
+
   // Define styles at the top to avoid "used before defined" warnings
   const styles = {
     container: {
@@ -100,17 +101,16 @@ export default function AudioReportPage() {
       marginBottom: '2rem',
       textAlign: 'center',
       maxWidth: '600px',
-      margin: '0 auto 2rem auto'
+      margin: '0 auto 2rem auto',
+      color: dataSource === 'video' ? '#155724' : '#004085'
     },
     sourceText: {
       fontSize: '1.1rem',
       fontWeight: '600',
-      color: dataSource === 'video' ? '#155724' : '#004085',
       margin: 0
     },
     sourceSubtext: {
       fontSize: '0.95rem',
-      color: dataSource === 'video' ? '#155724' : '#004085',
       marginTop: '0.5rem',
       margin: '0.5rem 0 0 0'
     },
@@ -241,7 +241,7 @@ export default function AudioReportPage() {
       borderRadius: '1rem',
       border: 'none',
       cursor: 'pointer',
-      fontSize: '1rem',
+      fontSize: '.7rem',
       fontWeight: '600',
       transition: 'all 0.3s ease'
     },
@@ -495,7 +495,7 @@ export default function AudioReportPage() {
 
     vocalDynamicsGrid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: '2rem',
       marginBottom: '2rem'
     },
@@ -625,6 +625,7 @@ export default function AudioReportPage() {
 
     benchmarkItem: {
       display: 'flex',
+      width: '75%',
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: '1rem',
@@ -634,13 +635,13 @@ export default function AudioReportPage() {
     },
 
     benchmarkLabel: {
-      fontSize: '1rem',
+      fontSize: '.8rem',
       color: '#666',
       fontWeight: '500'
     },
 
     benchmarkValue: {
-      fontSize: '1.1rem',
+      fontSize: '1rem',
       color: '#5D2E8C',
       fontWeight: 'bold'
     },
@@ -653,39 +654,34 @@ export default function AudioReportPage() {
   },
   };
 
-  const [isExporting, setIsExporting] = useState(false);
-  const reportRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);       
+  const reportRef   = useRef(null);
 const handlePrint = async () => {
-  if (!reportRef.current) return;
+    if (!reportRef.current) return;
 
-  setIsExporting(true);
+    setIsExporting(true);                          // 1️⃣ flag on
+    // give React a tick to paint the “export mode” CSS
+    await new Promise(r => setTimeout(r, 50));
 
-  // wait until icon / emoji fonts are ready
-  if (document.fonts && document.fonts.ready) {
-    await document.fonts.ready;
-  }
+    reportRef.current.classList.add('screenshot-mode');
 
-  // pause CSS animations while capturing
-  reportRef.current.classList.add('screenshot-mode');
-
-  try {
-    const dataUrl = await toPng(reportRef.current, {
-      //  device-pixel-ratio aware ≈ crisp on Retina
-      pixelRatio: window.devicePixelRatio || 2,
-      cacheBust: true          // forces re-render, avoids stale images
-    });
-
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = 'Performance_Report.png';
-    link.click();
-  } catch (err) {
-    console.error('Export failed:', err);
-  } finally {
-    reportRef.current.classList.remove('screenshot-mode');
-    setIsExporting(false);
-  }
-};
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 1,
+        useCORS: true
+      });
+      const img  = canvas.toDataURL('image/png');
+      const a    = document.createElement('a');
+      a.href      = img;
+      a.download  = 'Performance_Report.png';
+      a.click();
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      reportRef.current.classList.remove('screenshot-mode');
+      setIsExporting(false);                       // 2️⃣ flag off
+    }
+  };
 
   // Helper functions for vocal improvement tips
   const getPitchImprovementTip = (score) => {
@@ -1097,13 +1093,13 @@ const handlePrint = async () => {
         `}
       </style>
 
-      <div ref={reportRef} style={styles.reportBoxOuter}>
+      <div ref={reportRef} className={isExporting ? 'screenshot-mode' : undefined} style={styles.reportBoxOuter}>
         <div style={styles.reportBoxInner}>
           <div style={styles.header}>
             <h1 style={styles.title}>Here Are Your Results!</h1>
             <div style={styles.divider}></div>
 
-            {/* NEW: Source Indicator */}
+            {/* NEW: Source Indicator
             <div style={styles.sourceIndicator}>
               <p style={styles.sourceText}>
                 {dataSource === 'video' ? '🎥 Audio extracted from video analysis' : '🎵 Direct audio analysis'}
@@ -1114,7 +1110,7 @@ const handlePrint = async () => {
                   : 'This analysis was generated from your uploaded audio file'
                 }
               </p>
-            </div>
+            </div> */}
 
 
             <div className="report-container" style={styles.reportContainer}>
@@ -1660,8 +1656,7 @@ const handlePrint = async () => {
 
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
         <button className="download-button" onClick={handlePrint}>
-          <FaDownload />
-          Download Report
+<FaDownload/>{isExporting ? 'Generating…' : 'Download Report'}
         </button>
       </div>
 
@@ -1694,12 +1689,17 @@ const handlePrint = async () => {
   h1 { font-size: 22px !important; }
   .recharts-polar-angle-axis-tick-value { font-size: 9px !important; }
 }
-.screenshot-mode *,
-.screenshot-mode *::before,
-.screenshot-mode *::after {
-  animation: none !important;
-  transition: none !important;
-}
+.screenshot-mode,
+        .screenshot-mode * {       /* flatten BG */
+          box-shadow: none !important;        /* remove shadows */
+          text-shadow: none !important;
+          filter: none !important;
+          transition: none !important;
+          animation: none !important;
+        }
+        .screenshot-mode .scroll-chart {
+          overflow: hidden !important;        /* hide scrollbars */
+        }
 `}</style>
     </div>
 
