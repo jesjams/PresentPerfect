@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import {
   RadarChart,
   PolarGrid,
@@ -17,7 +18,8 @@ import { useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
 import { Tooltip as RTTooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
-
+import { storage } from '../context/firebase';
+import { v4 as uuid } from 'uuid';
 const BASE_URL = process.env.REACT_APP_API_HOST;
 const SOCKET_HOST = process.env.REACT_APP_SOCKET_HOST || 'http://localhost:4000';
 
@@ -39,14 +41,14 @@ export default function ReportPage() {
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [modalOpen,   setModalOpen]     = useState(false);
    const [imgDataUrl,  setImgDataUrl]    = useState(''); 
+   const [imgUrl,  setImgUrl]    = useState(''); 
   const reportRef = useRef(null);
+const handlePrint = async () => {
+  setIsExporting(true);
 
-  const handlePrint = async () => {
-    setIsExporting(true);
+  await new Promise(r => setTimeout(r, 50));
 
-    // allow any “export” CSS tweaks to take effect
-    await new Promise(r => setTimeout(r, 50));
-
+  try {
     const canvas = await html2canvas(reportRef.current, {
       scale: 1,
       useCORS: true,
@@ -55,15 +57,30 @@ export default function ReportPage() {
     });
 
     const dataUrl = canvas.toDataURL('image/png');
-    setImgDataUrl(dataUrl);   // give it to the modal
-    setModalOpen(true);       // show modal
+
+    // ✅ Correct way to create reference and upload
+    const fileName = `reports/${uuid()}.png`;
+    const fileRef  = ref(storage, fileName); // ref comes from firebase/storage
+    setImgUrl(dataUrl);
+    await uploadString(fileRef, dataUrl, 'data_url');
+
+    // ✅ Get downloadable URL
+    const downloadUrl = await getDownloadURL(fileRef);
+
+    setImgDataUrl(downloadUrl);
+    setModalOpen(true);
+  } catch (err) {
+    console.error('Upload error:', err);
+  } finally {
     setIsExporting(false);
-  };
+  }
+};
+
 
   /* --- download from the modal --- */
   const downloadNow = () => {
     const link = document.createElement('a');
-    link.href     = imgDataUrl;
+    link.href     = imgUrl;
     link.download = 'Performance_Report.png';
     link.click();
   };
@@ -1099,7 +1116,7 @@ export default function ReportPage() {
             {/* QR code preview */}
             {imgDataUrl && (
               <div style={styles.qrWrap}>
-                <QRCode value={"google.com"} size={160} />
+                <QRCode value={imgDataUrl} size={160} />
               </div>
             )}
 

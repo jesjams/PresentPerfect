@@ -12,6 +12,10 @@ import html2canvas from 'html2canvas';
 import { useAuth } from '../context/AuthContext';
 import { FaDownload } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
+import { storage } from '../context/firebase';
+import { v4 as uuid } from 'uuid';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+
 export default function AudioReportPage() {
   const location = useLocation();
   const [reportData, setReportData] = useState(location.state?.reportData || null);
@@ -21,7 +25,8 @@ export default function AudioReportPage() {
   const [loadingMessage, setLoadingMessage] = useState('Initializing analysis...');
   const [analysisError, setAnalysisError] = useState(null);
   const [modalOpen,   setModalOpen]     = useState(false);
-   const [imgDataUrl,  setImgDataUrl]    = useState(''); 
+     const [imgDataUrl,  setImgDataUrl]    = useState(''); 
+   const [imgUrl,  setImgUrl]    = useState(''); 
   const { user } = useAuth();
   const username = user?.email?.split('@')[0] || 'Guest';
 
@@ -698,40 +703,46 @@ export default function AudioReportPage() {
 const handlePrint = async () => {
   if (!reportRef.current) return;
 
-  setIsExporting(true);                       // 1️⃣ flag on
-  await new Promise(r => setTimeout(r, 50));  // let React paint any “export” CSS
+  setIsExporting(true);
+  await new Promise(r => setTimeout(r, 50)); // let styles apply
 
   reportRef.current.classList.add('screenshot-mode');
 
   try {
     const canvas = await html2canvas(reportRef.current, {
-      scale       : 1,
-      useCORS     : true,
-      width       : 1050,
-      windowWidth : 1100
+      scale: 1,
+      useCORS: true,
+      width: 1050,
+      windowWidth: 1100
     });
 
-    /* instead of auto-download → push to modal */
     const dataUrl = canvas.toDataURL('image/png');
-    setImgDataUrl(dataUrl);
-    setModalOpen(true);                       // open QR/Download modal
+    setImgUrl(dataUrl); // for local download
+
+    // upload to Firebase
+    const fileName = `reports/${uuid()}.png`;
+    const fileRef  = ref(storage, fileName);
+    await uploadString(fileRef, dataUrl, 'data_url');
+
+    const downloadUrl = await getDownloadURL(fileRef);
+    setImgDataUrl(downloadUrl); // for QR code
+
+    setModalOpen(true);
   } catch (err) {
-    console.error('Export failed:', err);
+    console.error('Export/upload failed:', err);
   } finally {
     reportRef.current.classList.remove('screenshot-mode');
-    setIsExporting(false);                    // 2️⃣ flag off
+    setIsExporting(false);
   }
 };
 
-/* -------------------
-   download from modal
-------------------- */
+/* --- download from the modal (local base64) --- */
 const downloadNow = () => {
-  if (!imgDataUrl) return;
-  const a   = document.createElement('a');
-  a.href    = imgDataUrl;
-  a.download= 'Performance_Report.png';
-  a.click();
+  if (!imgUrl) return;
+  const link = document.createElement('a');
+  link.href = imgUrl;
+  link.download = 'Performance_Report.png';
+  link.click();
 };
 
   // Helper functions for vocal improvement tips
@@ -1719,7 +1730,7 @@ const downloadNow = () => {
             {/* QR code preview */}
             {imgDataUrl && (
               <div style={styles.qrWrap}>
-                <QRCode value={"google.com"} size={160} />
+                <QRCode value={imgDataUrl} size={160} />
               </div>
             )}
 
